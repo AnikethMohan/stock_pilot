@@ -26,6 +26,7 @@ class DatabaseHelper {
       path,
       version: AppDefaults.dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
       onConfigure: _onConfigure,
     );
   }
@@ -47,6 +48,7 @@ class DatabaseHelper {
         description         TEXT,
         more_description    TEXT,
         unit_price          REAL    NOT NULL DEFAULT 0.0,
+        cost_price          REAL    NOT NULL DEFAULT 0.0,
         quantity_on_hand    REAL    NOT NULL DEFAULT 0.0,
         unit_of_measure     TEXT    NOT NULL DEFAULT 'Pieces',
         low_stock_threshold REAL    NOT NULL DEFAULT 10.0,
@@ -90,6 +92,12 @@ class DatabaseHelper {
       )
     ''');
 
+    // ── V2 tables ──────────────────────────────────────────────────
+    await _createV2Tables(db);
+
+    // ── V3 tables ──────────────────────────────────────────────────
+    await _createV3Tables(db);
+
     // Seed default settings
     await db.insert('settings', {
       'key': SettingsKeys.allowNegativeStock,
@@ -99,5 +107,152 @@ class DatabaseHelper {
       'key': SettingsKeys.defaultLowStockThreshold,
       'value': AppDefaults.defaultLowStockThreshold.toString(),
     });
+  }
+
+  /// Upgrade handler — additive-only, never drops tables.
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add cost_price column to existing products table.
+      await db.execute(
+        'ALTER TABLE products ADD COLUMN cost_price REAL NOT NULL DEFAULT 0.0',
+      );
+      await _createV2Tables(db);
+    }
+    if (oldVersion < 3) {
+      await _createV3Tables(db);
+      await _migrateV2ToV3(db);
+    }
+  }
+
+  /// V2 schema: customers, invoices, invoice_items.
+  Future<void> _createV2Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS customers (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        phone      TEXT,
+        email      TEXT,
+        address    TEXT,
+        created_at TEXT    NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS invoices (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_number TEXT    NOT NULL UNIQUE,
+        customer_id    INTEGER,
+        subtotal       REAL    NOT NULL DEFAULT 0.0,
+        tax_percent    REAL    NOT NULL DEFAULT 0.0,
+        tax_amount     REAL    NOT NULL DEFAULT 0.0,
+        grand_total    REAL    NOT NULL DEFAULT 0.0,
+        status         TEXT    NOT NULL DEFAULT 'draft',
+        notes          TEXT,
+        created_at     TEXT    NOT NULL,
+        FOREIGN KEY (customer_id) REFERENCES customers(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS invoice_items (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_id   INTEGER NOT NULL,
+        product_id   INTEGER NOT NULL,
+        sku          TEXT    NOT NULL,
+        product_name TEXT    NOT NULL,
+        unit_price   REAL    NOT NULL,
+        quantity     REAL    NOT NULL,
+        line_total   REAL    NOT NULL,
+        FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id)
+      )
+    ''');
+  }
+
+  /// V3 schema: unified sales_documents and sales_document_items.
+  Future<void> _createV3Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sales_documents (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        doc_type          TEXT    NOT NULL,
+        doc_number        TEXT    NOT NULL UNIQUE,
+        customer_id       INTEGER,
+        subtotal          REAL    NOT NULL DEFAULT 0.0,
+        discount_percent  REAL    NOT NULL DEFAULT 0.0,
+        discount_amount   REAL    NOT NULL DEFAULT 0.0,
+        tax_amount        REAL    NOT NULL DEFAULT 0.0,
+        grand_total       REAL    NOT NULL DEFAULT 0.0,
+        status            TEXT    NOT NULL DEFAULT 'draft',
+        source_doc_id     INTEGER,
+        source_doc_number TEXT,
+        delivery_date     TEXT,
+        payment_status    TEXT,
+        notes             TEXT,
+        created_at        TEXT    NOT NULL,
+        FOREIGN KEY (customer_id) REFERENCES customers(id),
+        FOREIGN KEY (source_doc_id) REFERENCES sales_documents(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sales_document_items (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id      INTEGER NOT NULL,
+        product_id       INTEGER NOT NULL,
+        sku              TEXT    NOT NULL,
+        product_name     TEXT    NOT NULL,
+        unit_price       REAL    NOT NULL,
+        quantity         REAL    NOT NULL,
+        discount_percent REAL    NOT NULL DEFAULT 0.0,
+        discount_amount  REAL    NOT NULL DEFAULT 0.0,
+        tax_percent      REAL    NOT NULL DEFAULT 0.0,
+        tax_amount       REAL    NOT NULL DEFAULT 0.0,
+        line_total       REAL    NOT NULL,
+        FOREIGN KEY (document_id) REFERENCES sales_documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id)  REFERENCES products(id)
+      )
+    ''');
+  }
+
+  /// Migrate existing invoices from V2 tables into V3 sales_documents tables.
+  Future<void> _migrateV2ToV3(Database db) async {
+    final invoices = await db.query('invoices');
+    for (final inv in invoices) {
+      final oldId = inv['id'] as int;
+      final newId = await db.insert('sales_documents', {
+        'doc_type': 'invoice',
+        'doc_number': inv['invoice_number'],
+        'customer_id': inv['customer_id'],
+        'subtotal': inv['subtotal'],
+        'discount_percent': 0.0,
+        'discount_amount': 0.0,
+        'tax_amount': inv['tax_amount'],
+        'grand_total': inv['grand_total'],
+        'status': inv['status'],
+        'notes': inv['notes'],
+        'created_at': inv['created_at'],
+      });
+
+      final items = await db.query(
+        'invoice_items',
+        where: 'invoice_id = ?',
+        whereArgs: [oldId],
+      );
+      for (final item in items) {
+        await db.insert('sales_document_items', {
+          'document_id': newId,
+          'product_id': item['product_id'],
+          'sku': item['sku'],
+          'product_name': item['product_name'],
+          'unit_price': item['unit_price'],
+          'quantity': item['quantity'],
+          'discount_percent': 0.0,
+          'discount_amount': 0.0,
+          'tax_percent': 0.0,
+          'tax_amount': 0.0,
+          'line_total': item['line_total'],
+        });
+      }
+    }
   }
 }

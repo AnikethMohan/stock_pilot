@@ -231,6 +231,40 @@ class InventoryLocalDataSource {
       }
       await batch.commit(noResult: true);
 
+      // ── Persist metadata for products that have custom attributes ──
+      final productsWithMeta = chunk
+          .where((p) => p.metadata.isNotEmpty)
+          .toList();
+      if (productsWithMeta.isNotEmpty) {
+        // Look up the product IDs by SKU for this chunk.
+        final skus = productsWithMeta.map((p) => p.sku).toList();
+        final placeholders = List.filled(skus.length, '?').join(',');
+        final idRows = await db.rawQuery(
+          'SELECT id, sku FROM products WHERE sku IN ($placeholders)',
+          skus,
+        );
+        final skuToId = <String, int>{};
+        for (final row in idRows) {
+          skuToId[row['sku'] as String] = row['id'] as int;
+        }
+
+        final metaBatch = db.batch();
+        for (final p in productsWithMeta) {
+          final productId = skuToId[p.sku];
+          if (productId == null) continue;
+          for (final m in p.metadata) {
+            metaBatch.rawInsert(
+              '''
+              INSERT OR REPLACE INTO product_metadata (product_id, key, value)
+              VALUES (?, ?, ?)
+              ''',
+              [productId, m.key, m.value],
+            );
+          }
+        }
+        await metaBatch.commit(noResult: true);
+      }
+
       processed += chunk.length;
       onProgress?.call(processed, products.length);
     }
@@ -251,6 +285,14 @@ class InventoryLocalDataSource {
       'SELECT COALESCE(SUM(unit_price * quantity_on_hand), 0) as total FROM products',
     );
     return (result.first['total'] as num).toDouble();
+  }
+
+  Future<double> getPotentialProfit() async {
+    final db = await _dbHelper.database;
+    final result = await db.rawQuery(
+      'SELECT COALESCE(SUM((unit_price - cost_price) * quantity_on_hand), 0) as profit FROM products',
+    );
+    return (result.first['profit'] as num).toDouble();
   }
 
   Future<int> getLowStockCount() async {
@@ -326,25 +368,36 @@ class InventoryLocalDataSource {
     return rows.map(MetadataModel.fromMap).toList();
   }
 
-  /// Batch-load metadata for multiple product IDs in a single query.
+  /// Batch-load metadata for multiple product IDs, chunked to avoid
+  /// SQLite's variable limit (~999 placeholders).
   Future<Map<int, List<ProductMetadata>>> _getMetadataForProducts(
     Database db,
     List<int> productIds,
   ) async {
     if (productIds.isEmpty) return {};
 
-    final placeholders = List.filled(productIds.length, '?').join(',');
-    final rows = await db.rawQuery(
-      'SELECT * FROM product_metadata WHERE product_id IN ($placeholders)',
-      productIds,
-    );
-
+    const chunkSize = 500;
     final map = <int, List<ProductMetadata>>{};
-    for (final row in rows) {
-      final pid = row['product_id'] as int;
-      map.putIfAbsent(pid, () => []);
-      map[pid]!.add(MetadataModel.fromMap(row));
+
+    for (var start = 0; start < productIds.length; start += chunkSize) {
+      final end = (start + chunkSize > productIds.length)
+          ? productIds.length
+          : start + chunkSize;
+      final chunk = productIds.sublist(start, end);
+
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await db.rawQuery(
+        'SELECT * FROM product_metadata WHERE product_id IN ($placeholders)',
+        chunk,
+      );
+
+      for (final row in rows) {
+        final pid = row['product_id'] as int;
+        map.putIfAbsent(pid, () => []);
+        map[pid]!.add(MetadataModel.fromMap(row));
+      }
     }
+
     return map;
   }
 }

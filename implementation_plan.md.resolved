@@ -1,0 +1,281 @@
+# Unified Sales Document System
+
+Replace the existing invoice-only approach with a unified system supporting **Quotations**, **Delivery Notes**, and **Invoices** from a single builder page. Each line item supports per-item **discount %**, **discount value**, and **tax %**. Documents can be converted between types (Quotation → Delivery Note → Invoice) with full data carry-forward.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Database migration**: The DB version will bump from V2 → V3. Existing `invoices` and `invoice_items` data will be migrated into the new `sales_documents` and `sales_document_items` tables as Invoice-type documents. The old tables are kept as-is (SQLite doesn't drop tables during migration).
+
+> [!IMPORTANT]
+> **File renames**: The existing [invoice_bloc.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_bloc.dart), [invoice_event.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_event.dart), [invoice_state.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_state.dart), [invoice_builder_page.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/invoice_builder_page.dart), and [invoice_list_page.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/invoice_list_page.dart) will be replaced with new `sales_doc_*` equivalents. The old files will be deleted.
+
+---
+
+## Proposed Changes
+
+### Constants & Enums
+
+#### [MODIFY] [app_constants.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/core/constants/app_constants.dart)
+
+- Add `DocType` enum: `quotation`, `deliveryNote`, `invoice`
+- Add `DocStatus` enum: `draft`, `confirmed`, `cancelled`
+- Bump `dbVersion` from `2` → `3`
+
+---
+
+### Domain Entities
+
+#### [MODIFY] [invoice.dart → sales_document.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/domain/entities/invoice.dart)
+
+Rename file to `sales_document.dart`. Replace [Invoice](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/domain/entities/invoice.dart#7-89) entity with `SalesDocument`:
+
+New/changed fields:
+- `docType` (DocType) — quotation, deliveryNote, or invoice
+- `docNumber` (String) — e.g. QUO-00001, DN-00001, INV-00001
+- `discountAmount` (double) — total discount across all items
+- `sourceDocId` (int?) — foreign key to the document this was converted from
+- `sourceDocNumber` (String?) — display reference to the original doc
+- `deliveryDate` (DateTime?) — for delivery notes
+- `paymentStatus` (String?) — for invoices: paid/unpaid/partial
+
+Replace [InvoiceItem](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/domain/entities/invoice.dart#91-162) with `SalesDocItem`:
+- `discountPercent` (double) — per-item discount %
+- `discountAmount` (double) — computed per-item discount value  
+- `taxPercent` (double) — per-item tax %
+- `taxAmount` (double) — computed per-item tax value
+- `lineTotal` — now = [(unitPrice × qty) - discountAmount + taxAmount](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/models/invoice_model.dart#54-66)
+
+New [recalculate()](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/domain/entities/invoice.dart#36-42) logic: aggregate subtotal, total discount, total tax, grand total from item-level calculations.
+
+---
+
+### Data Layer — Models
+
+#### [DELETE] [invoice_model.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/models/invoice_model.dart)
+
+Replaced by new model file.
+
+#### [NEW] [sales_document_model.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/models/sales_document_model.dart)
+
+- `SalesDocumentModel.toMap()` / [fromMap()](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/models/invoice_model.dart#27-49) — maps `SalesDocument` ↔ `sales_documents` table
+- `SalesDocItemModel.toMap()` / [fromMap()](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/models/invoice_model.dart#27-49) — maps `SalesDocItem` ↔ `sales_document_items` table
+
+---
+
+### Data Layer — Database
+
+#### [MODIFY] [database_helper.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/core/database/database_helper.dart)
+
+- Add `_createV3Tables(db)` to create `sales_documents` and `sales_document_items`:
+
+```sql
+CREATE TABLE IF NOT EXISTS sales_documents (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  doc_type          TEXT    NOT NULL, -- 'quotation', 'delivery_note', 'invoice'
+  doc_number        TEXT    NOT NULL UNIQUE,
+  customer_id       INTEGER,
+  subtotal          REAL    NOT NULL DEFAULT 0.0,
+  discount_amount   REAL    NOT NULL DEFAULT 0.0,
+  tax_amount        REAL    NOT NULL DEFAULT 0.0,
+  grand_total       REAL    NOT NULL DEFAULT 0.0,
+  status            TEXT    NOT NULL DEFAULT 'draft',
+  source_doc_id     INTEGER,
+  source_doc_number TEXT,
+  delivery_date     TEXT,
+  payment_status    TEXT,
+  notes             TEXT,
+  created_at        TEXT    NOT NULL,
+  FOREIGN KEY (customer_id) REFERENCES customers(id),
+  FOREIGN KEY (source_doc_id) REFERENCES sales_documents(id)
+);
+
+CREATE TABLE IF NOT EXISTS sales_document_items (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_id      INTEGER NOT NULL,
+  product_id       INTEGER NOT NULL,
+  sku              TEXT    NOT NULL,
+  product_name     TEXT    NOT NULL,
+  unit_price       REAL    NOT NULL,
+  quantity         REAL    NOT NULL,
+  discount_percent REAL    NOT NULL DEFAULT 0.0,
+  discount_amount  REAL    NOT NULL DEFAULT 0.0,
+  tax_percent      REAL    NOT NULL DEFAULT 0.0,
+  tax_amount       REAL    NOT NULL DEFAULT 0.0,
+  line_total       REAL    NOT NULL,
+  FOREIGN KEY (document_id) REFERENCES sales_documents(id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id)  REFERENCES products(id)
+);
+```
+
+- Add V2→V3 migration: copies data from `invoices` → `sales_documents` and `invoice_items` → `sales_document_items`
+- Call `_createV3Tables(db)` from [_onCreate](file:///Users/fitpass-growth/Documents/stock_pilot/lib/core/database/database_helper.dart#39-108) as well
+
+---
+
+### Data Layer — Datasource
+
+#### [MODIFY] [sales_local_datasource.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/datasources/sales_local_datasource.dart)
+
+- Add `getNextDocNumber(DocType)` — generates `QUO-XXXXX`, `DN-XXXXX`, or `INV-XXXXX`
+- Add `saveDocument(SalesDocument)` — insert or update a draft
+- Add `getDocuments({DocType? filter})` — list all docs with optional type filter
+- Add `getDocumentById(int id)` — fetch full doc with items + customer
+- Refactor `confirmDocument(SalesDocument)` — type-aware: only deducts stock for delivery notes and invoices; quotations don't affect stock
+- Add `convertDocument(int sourceId, DocType targetType)` — creates a new document from an existing one, linking via `source_doc_id`
+- Update BI queries ([getRevenueToday](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/datasources/sales_local_datasource.dart#275-287), [getTopSellingItems](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/repositories/sales_repository_impl.dart#51-54)) to query `sales_documents`/`sales_document_items` instead of old tables
+
+---
+
+### Repository Layer
+
+#### [MODIFY] [sales_repository.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/domain/repositories/sales_repository.dart)
+
+New interface:
+```dart
+abstract class SalesRepository {
+  // Customers (unchanged)
+  Future<List<Customer>> getCustomers({String? searchQuery});
+  Future<Customer> saveCustomer(Customer customer);
+  
+  // Unified Documents
+  Future<String> getNextDocNumber(DocType type);
+  Future<List<SalesDocument>> getDocuments({DocType? typeFilter, int limit, int offset});
+  Future<SalesDocument> getDocumentById(int id);
+  Future<SalesDocument> saveDocument(SalesDocument doc);
+  Future<SalesDocument> confirmDocument(SalesDocument doc);
+  Future<SalesDocument> convertDocument(int sourceDocId, DocType targetType);
+  
+  // BI
+  Future<double> getRevenueToday();
+  Future<Map<String, int>> getTopSellingItems({int limit = 5});
+}
+```
+
+#### [MODIFY] [sales_repository_impl.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/data/repositories/sales_repository_impl.dart)
+
+Delegate to updated datasource methods.
+
+---
+
+### BLoC (State Management)
+
+#### [DELETE] [invoice_bloc.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_bloc.dart)
+#### [DELETE] [invoice_event.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_event.dart)
+#### [DELETE] [invoice_state.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_state.dart)
+
+#### [NEW] [sales_doc_bloc.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/sales_doc_bloc.dart)
+
+Events:
+- `StartNewDocument({DocType type, SalesDocument? existing})`
+- `SetDocType(DocType type)`
+- `AddItem(Product product, {double qty})`
+- `RemoveItem(String sku)`
+- [UpdateItemQuantity(String sku, double qty)](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_event.dart#56-64)
+- `UpdateItemPrice(String sku, double price)`
+- `UpdateItemDiscount(String sku, double discountPercent)`
+- `UpdateItemTax(String sku, double taxPercent)`
+- [SelectCustomer(Customer customer)](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_event.dart#66-73)
+- `UpdateNotes(String notes)`
+- `SaveDraft()`
+- `ConfirmDocument()`
+- `ConvertDocument(int sourceId, DocType targetType)`
+- `LoadDocuments({DocType? filter})`
+
+States:
+- `SalesDocInitial`
+- `SalesDocLoading`
+- `SalesDocBuilding(SalesDocument activeDoc)`
+- `SalesDocSaving(SalesDocument activeDoc)`
+- `SalesDocSaved(SalesDocument doc)`
+- `SalesDocConfirmed(SalesDocument doc)`
+- `SalesDocListLoaded(List<SalesDocument> docs)`
+- `SalesDocError(String message, {SalesDocument? activeDoc})`
+
+---
+
+### Presentation Layer
+
+#### [DELETE] [invoice_builder_page.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/invoice_builder_page.dart)
+#### [DELETE] [invoice_list_page.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/invoice_list_page.dart)
+
+#### [NEW] [sales_doc_builder_page.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/sales_doc_builder_page.dart)
+
+Single page for creating/editing any document type:
+- **Document type selector** — SegmentedButton: Quotation / Delivery Note / Invoice
+- **Customer section** — searchable dropdown (same customer picker)
+- **Product entry table** — columns: Product (searchable), Qty, Unit Price, Discount %, Tax %, Line Total, Actions
+- **Totals section** — Subtotal, Total Discount, Total Tax, Grand Total (auto-calculated)
+- **Dynamic UI** — when Delivery Note is selected, price/tax columns can be collapsed; when Quotation, confirm button says "Save Quotation" (no stock impact)
+- **Delivery date picker** — visible only for Delivery Notes
+- **Notes field**
+- **Actions** — Save Draft, Confirm
+
+#### [NEW] [sales_doc_list_page.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/sales_doc_list_page.dart)
+
+Replaces [InvoiceListPage](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/invoice_list_page.dart#17-23):
+- Filter chips: All | Quotations | Delivery Notes | Invoices
+- Each card shows doc type icon, number, customer, item count, grand total, status
+- Tap actions: view PDF (confirmed), edit (draft), convert to other type
+- FAB → opens `SalesDocBuilderPage`
+
+---
+
+### PdfService
+
+#### [MODIFY] [pdf_service.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/core/services/pdf_service.dart)
+
+- Accept `SalesDocument` instead of [Invoice](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/domain/entities/invoice.dart#7-89)
+- Dynamic header: "QUOTATION", "DELIVERY NOTE", or "INVOICE" based on `docType`
+- Add Discount and Tax columns to items table
+- Update totals section to show discount and tax breakdowns
+- Show source document reference if converted
+
+---
+
+### Navigation Wiring
+
+#### [MODIFY] [app.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/app.dart)
+
+- Replace [InvoiceBloc](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/bloc/invoice_bloc.dart#11-186) with `SalesDocBloc`
+- Update import paths
+
+#### [MODIFY] [desktop_shell.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/shell/desktop_shell.dart)
+
+- Replace [InvoiceListPage](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/invoice_list_page.dart#17-23) with `SalesDocListPage`
+
+#### [MODIFY] [mobile_shell.dart](file:///Users/fitpass-growth/Documents/stock_pilot/lib/shell/mobile_shell.dart)
+
+- Replace [InvoiceListPage](file:///Users/fitpass-growth/Documents/stock_pilot/lib/features/sales/presentation/pages/invoice_list_page.dart#17-23) with `SalesDocListPage`
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+Run static analysis to ensure no compilation errors or warnings:
+```bash
+cd /Users/fitpass-growth/Documents/stock_pilot && flutter analyze
+```
+
+### Manual Verification
+
+Since this is a Flutter native app, manual testing is required:
+
+1. **Run the app**: `cd /Users/fitpass-growth/Documents/stock_pilot && flutter run -d macos`
+2. **Navigate to Sales** tab in the sidebar
+3. **Create a Quotation**:
+   - Click FAB → opens builder page
+   - Select "Quotation" doc type
+   - Add 2-3 products, verify discount % and tax % per item
+   - Verify totals auto-calculate
+   - Save as draft → verify it appears in the list with quotation icon
+4. **Convert Quotation → Invoice**:
+   - From the list, use convert action on the quotation
+   - Verify items, customer, and prices carry forward
+   - Confirm the invoice → verify stock decrements
+5. **Create a Delivery Note**:
+   - Verify price/tax columns can be hidden
+   - Confirm → verify stock decrements
+6. **PDF Generation**: Tap a confirmed document → verify PDF shows correct type header

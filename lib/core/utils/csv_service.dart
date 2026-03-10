@@ -10,10 +10,39 @@ import 'package:stock_pilot/features/inventory/domain/entities/product.dart';
 class CsvService {
   CsvService._();
 
+  /// Normalised names of columns that map to built-in Product fields.
+  /// Used to identify which CSV columns are "extra" / custom attributes.
+  static const _knownColumns = <String>{
+    'sku',
+    'name',
+    'brand',
+    'category',
+    'description',
+    'moredescription',
+    'unitprice',
+    'quantityonhand',
+    'quantity',
+    'unitofmeasure',
+    'lowstockthreshold',
+    'locationaisle',
+    'locationshelf',
+    'locationbin',
+  };
+
   // ─── Export ──────────────────────────────────────────────────────
 
   /// Convert a list of products to a CSV-formatted string.
+  /// Custom attributes (metadata) are included as extra columns.
   static String exportToCsv(List<Product> products) {
+    // Collect all unique metadata keys across every product.
+    final metaKeys = <String>{};
+    for (final p in products) {
+      for (final m in p.metadata) {
+        metaKeys.add(m.key);
+      }
+    }
+    final sortedMetaKeys = metaKeys.toList()..sort();
+
     final headers = [
       'SKU',
       'Name',
@@ -28,10 +57,13 @@ class CsvService {
       'Location Aisle',
       'Location Shelf',
       'Location Bin',
+      ...sortedMetaKeys,
     ];
 
     final rows = <List<dynamic>>[headers];
     for (final p in products) {
+      // Build a quick lookup for this product's metadata.
+      final metaMap = {for (final m in p.metadata) m.key: m.value};
       rows.add([
         p.sku,
         p.name,
@@ -46,6 +78,7 @@ class CsvService {
         p.locationAisle,
         p.locationShelf,
         p.locationBin,
+        ...sortedMetaKeys.map((k) => metaMap[k] ?? ''),
       ]);
     }
 
@@ -76,11 +109,23 @@ class CsvService {
 
     // Build header index map (normalised to lowercase, stripped).
     final rawHeaders = rows.first.map((h) => _normalise(h.toString())).toList();
+    // Also keep the original (display-friendly) header names for metadata keys.
+    final originalHeaders = rows.first.map((h) => h.toString().trim()).toList();
+
     final headerMap = <String, int>{};
     for (var i = 0; i < rawHeaders.length; i++) {
       // Skip empty/blank headers (trailing commas in the CSV).
       if (rawHeaders[i].isEmpty) continue;
       headerMap[rawHeaders[i]] = i;
+    }
+
+    // Identify extra columns that are not known product fields.
+    final extraColumns = <int, String>{};
+    for (final entry in headerMap.entries) {
+      if (!_knownColumns.contains(entry.key)) {
+        // Use the original (un-normalised) header as the metadata key.
+        extraColumns[entry.value] = originalHeaders[entry.value];
+      }
     }
 
     // Validate required columns
@@ -95,6 +140,19 @@ class CsvService {
     for (var i = 1; i < rows.length; i++) {
       final row = rows[i];
       if (row.isEmpty) continue;
+
+      // Build metadata from extra (unknown) columns.
+      final metadata = <ProductMetadata>[];
+      for (final entry in extraColumns.entries) {
+        final colIdx = entry.key;
+        final colName = entry.value;
+        if (colIdx < row.length) {
+          final val = row[colIdx].toString().trim();
+          if (val.isNotEmpty) {
+            metadata.add(ProductMetadata(key: colName, value: val));
+          }
+        }
+      }
 
       products.add(
         Product(
@@ -135,6 +193,7 @@ class CsvService {
           locationBin: _cell(row, headerMap, 'locationbin').isNotEmpty
               ? _cell(row, headerMap, 'locationbin')
               : _cell(row, headerMap, 'location_bin'),
+          metadata: metadata,
         ),
       );
     }

@@ -4,6 +4,7 @@ library;
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stock_pilot/features/inventory/domain/repositories/inventory_repository.dart';
+import 'package:stock_pilot/features/sales/domain/repositories/sales_repository.dart';
 import 'package:stock_pilot/features/transactions/domain/entities/stock_transaction.dart';
 
 // ─── Events ────────────────────────────────────────────────────────
@@ -40,11 +41,17 @@ class DashboardLoaded extends DashboardState {
     required this.lowStockCount,
     required this.totalProducts,
     required this.recentTransactions,
+    required this.revenueToday,
+    required this.potentialProfit,
+    required this.topSellingItems,
   });
   final double totalInventoryValue;
   final int lowStockCount;
   final int totalProducts;
   final List<StockTransaction> recentTransactions;
+  final double revenueToday;
+  final double potentialProfit;
+  final Map<String, int> topSellingItems;
 
   @override
   List<Object?> get props => [
@@ -52,6 +59,9 @@ class DashboardLoaded extends DashboardState {
     lowStockCount,
     totalProducts,
     recentTransactions,
+    revenueToday,
+    potentialProfit,
+    topSellingItems,
   ];
 }
 
@@ -68,14 +78,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   DashboardBloc({
     required InventoryRepository inventoryRepository,
     required TransactionRepository transactionRepository,
+    required SalesRepository salesRepository,
   }) : _inventoryRepo = inventoryRepository,
        _transactionRepo = transactionRepository,
+       _salesRepo = salesRepository,
        super(const DashboardInitial()) {
     on<LoadDashboard>(_onLoad);
   }
 
   final InventoryRepository _inventoryRepo;
   final TransactionRepository _transactionRepo;
+  final SalesRepository _salesRepo;
 
   Future<void> _onLoad(
     LoadDashboard event,
@@ -88,6 +101,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         _inventoryRepo.getLowStockCount(),
         _inventoryRepo.getProducts(),
         _transactionRepo.getRecentTransactions(limit: 10),
+        _salesRepo.getRevenueToday(),
+        _inventoryRepo.getPotentialProfit(),
+        _salesRepo.getTopSellingItems(limit: 5),
       ]);
 
       emit(
@@ -96,6 +112,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           lowStockCount: results[1] as int,
           totalProducts: (results[2] as List).length,
           recentTransactions: results[3] as List<StockTransaction>,
+          revenueToday: results[4] as double,
+          potentialProfit: results[5] as double,
+          topSellingItems: results[6] as Map<String, int>,
         ),
       );
     } catch (e) {

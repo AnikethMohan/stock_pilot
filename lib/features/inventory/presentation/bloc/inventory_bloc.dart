@@ -64,7 +64,6 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
         ),
       );
     } catch (e) {
-      print('$e');
       emit(InventoryError(e.toString()));
     }
   }
@@ -216,7 +215,6 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
         ),
       );
     } catch (e) {
-      print("$e");
       emit(InventoryError('CSV Import failed: ${e.toString()}'));
     }
   }

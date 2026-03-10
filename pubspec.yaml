@@ -21,12 +21,14 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.1
 
-  # CSV
+  # CSV / PDF
   csv: ^6.0.0
   file_picker: ^10.3.10
+  pdf: ^3.11.2
+  printing: ^5.13.4
 
   # Scanning
-  mobile_scanner: ^7.0.1
+
 
   # Utilities
   intl: ^0.20.2
@@ -41,3 +43,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/NotoSans-Regular.ttf
+    - assets/fonts/NotoSans-Bold.ttf

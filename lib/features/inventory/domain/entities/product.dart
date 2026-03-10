@@ -14,6 +14,7 @@ class Product extends Equatable {
     this.moreDescription = '',
     this.description = '',
     this.unitPrice = 0.0,
+    this.costPrice = 0.0,
     this.quantityOnHand = 0.0,
     this.unitOfMeasure = UnitOfMeasure.pieces,
     this.lowStockThreshold = 10.0,
@@ -33,6 +34,7 @@ class Product extends Equatable {
   final String description;
   final String moreDescription;
   final double unitPrice;
+  final double costPrice;
   final double quantityOnHand;
   final UnitOfMeasure unitOfMeasure;
   final double lowStockThreshold;
@@ -55,6 +57,7 @@ class Product extends Equatable {
     String? moreDescription,
     String? description,
     double? unitPrice,
+    double? costPrice,
     double? quantityOnHand,
     UnitOfMeasure? unitOfMeasure,
     double? lowStockThreshold,
@@ -74,6 +77,7 @@ class Product extends Equatable {
       description: description ?? this.description,
       moreDescription: moreDescription ?? this.moreDescription,
       unitPrice: unitPrice ?? this.unitPrice,
+      costPrice: costPrice ?? this.costPrice,
       quantityOnHand: quantityOnHand ?? this.quantityOnHand,
       unitOfMeasure: unitOfMeasure ?? this.unitOfMeasure,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
@@ -96,6 +100,7 @@ class Product extends Equatable {
     moreDescription,
     description,
     unitPrice,
+    costPrice,
     quantityOnHand,
     unitOfMeasure,
     lowStockThreshold,

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:stock_pilot/core/theme/app_theme.dart';
 import 'package:stock_pilot/features/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:stock_pilot/features/inventory/presentation/pages/product_list_page.dart';
+import 'package:stock_pilot/features/sales/presentation/pages/sales_doc_list_page.dart';
 import 'package:stock_pilot/features/transactions/presentation/pages/transaction_history_page.dart';
 import 'package:stock_pilot/features/settings/presentation/pages/settings_page.dart';
 
@@ -22,6 +23,7 @@ class _DesktopShellState extends State<DesktopShell> {
     DashboardPage(),
     ProductListPage(),
     TransactionHistoryPage(),
+    SalesDocListPage(),
     SettingsPage(),
   ];
 
@@ -71,6 +73,11 @@ class _DesktopShellState extends State<DesktopShell> {
                 icon: Icon(Icons.receipt_long_outlined),
                 selectedIcon: Icon(Icons.receipt_long),
                 label: Text('Transactions'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.point_of_sale_outlined),
+                selectedIcon: Icon(Icons.point_of_sale),
+                label: Text('Sales'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.settings_outlined),

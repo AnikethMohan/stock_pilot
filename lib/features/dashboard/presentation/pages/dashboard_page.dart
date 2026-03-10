@@ -59,6 +59,18 @@ class DashboardPage extends StatelessWidget {
                     childAspectRatio: crossCount == 1 ? 2.3 : 2.0,
                     children: [
                       _KpiCard(
+                        title: 'Revenue Today',
+                        value: currencyFormat.format(data.revenueToday),
+                        icon: Icons.point_of_sale,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                      _KpiCard(
+                        title: 'Potential Profit',
+                        value: currencyFormat.format(data.potentialProfit),
+                        icon: Icons.trending_up,
+                        color: Colors.blueAccent,
+                      ),
+                      _KpiCard(
                         title: 'Total Inventory Value',
                         value: currencyFormat.format(data.totalInventoryValue),
                         icon: Icons.attach_money_rounded,
@@ -139,6 +151,49 @@ class DashboardPage extends StatelessWidget {
                     ),
                   );
                 }),
+
+              const SizedBox(height: 28),
+              if (data.topSellingItems.isNotEmpty) ...[
+                Text(
+                  'Top Selling Items',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: data.topSellingItems.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final entry = data.topSellingItems.entries.elementAt(
+                        index,
+                      );
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.blueAccent.withValues(
+                            alpha: 0.2,
+                          ),
+                          foregroundColor: Colors.blueAccent,
+                          child: Text('${index + 1}'),
+                        ),
+                        title: Text(
+                          entry.key,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        trailing: Text(
+                          '${entry.value} sold',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           ),
         );

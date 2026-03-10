@@ -108,6 +108,9 @@ class InventoryRepositoryImpl implements InventoryRepository {
 
   @override
   Future<int> getLowStockCount() => _ds.getLowStockCount();
+
+  @override
+  Future<double> getPotentialProfit() => _ds.getPotentialProfit();
 }
 
 class TransactionRepositoryImpl implements TransactionRepository {

@@ -41,6 +41,53 @@ enum TransactionReason {
   }
 }
 
+/// Document types for sales documents.
+enum DocType {
+  quotation('quotation', 'QUO'),
+  deliveryNote('delivery_note', 'DN'),
+  invoice('invoice', 'INV');
+
+  const DocType(this.value, this.prefix);
+  final String value;
+  final String prefix;
+
+  String get label => switch (this) {
+    DocType.quotation => 'Quotation',
+    DocType.deliveryNote => 'Delivery Note',
+    DocType.invoice => 'Invoice',
+  };
+
+  static DocType fromString(String value) {
+    return DocType.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => DocType.invoice,
+    );
+  }
+}
+
+/// Statuses for sales documents.
+enum DocStatus {
+  draft('draft'),
+  confirmed('confirmed'),
+  cancelled('cancelled');
+
+  const DocStatus(this.value);
+  final String value;
+
+  String get label => switch (this) {
+    DocStatus.draft => 'Draft',
+    DocStatus.confirmed => 'Confirmed',
+    DocStatus.cancelled => 'Cancelled',
+  };
+
+  static DocStatus fromString(String value) {
+    return DocStatus.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => DocStatus.draft,
+    );
+  }
+}
+
 /// Default application settings.
 class AppDefaults {
   AppDefaults._();
@@ -48,7 +95,7 @@ class AppDefaults {
   static const double defaultLowStockThreshold = 10.0;
   static const bool defaultAllowNegativeStock = false;
   static const String dbName = 'stock_pilot.db';
-  static const int dbVersion = 1;
+  static const int dbVersion = 3;
   static const String defaultCurrencyCode = 'USD';
 }
 

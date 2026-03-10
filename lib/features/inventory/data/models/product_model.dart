@@ -18,6 +18,7 @@ class ProductModel {
       'more_description': product.moreDescription,
       'description': product.description,
       'unit_price': product.unitPrice,
+      'cost_price': product.costPrice,
       'quantity_on_hand': product.quantityOnHand,
       'unit_of_measure': product.unitOfMeasure.label,
       'low_stock_threshold': product.lowStockThreshold,
@@ -42,6 +43,7 @@ class ProductModel {
       moreDescription: (map['more_description'] as String?) ?? '',
       description: (map['description'] as String?) ?? '',
       unitPrice: (map['unit_price'] as num?)?.toDouble() ?? 0.0,
+      costPrice: (map['cost_price'] as num?)?.toDouble() ?? 0.0,
       quantityOnHand: (map['quantity_on_hand'] as num?)?.toDouble() ?? 0.0,
       unitOfMeasure: UnitOfMeasure.fromString(
         (map['unit_of_measure'] as String?) ?? 'Pieces',

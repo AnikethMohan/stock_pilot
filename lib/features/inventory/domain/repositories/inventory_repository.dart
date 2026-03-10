@@ -61,6 +61,9 @@ abstract class InventoryRepository {
   /// Sum of (unit_price * quantity_on_hand) for all products.
   Future<double> getTotalInventoryValue();
 
+  /// Returns the total potential profit based on current stock.
+  Future<double> getPotentialProfit();
+
   /// Number of products where quantity_on_hand <= low_stock_threshold.
   Future<int> getLowStockCount();
 }
