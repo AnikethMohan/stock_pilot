@@ -4,6 +4,7 @@ library;
 import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
 import 'package:stock_pilot/features/sales/domain/entities/sales_document.dart';
+import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
 
 class SalesDocumentModel {
   SalesDocumentModel._();
@@ -15,6 +16,7 @@ class SalesDocumentModel {
       'doc_type': doc.docType.value,
       'doc_number': doc.docNumber,
       'customer_id': doc.customerId,
+      'supplier_id': doc.supplierId,
       'subtotal': doc.subtotal,
       'discount_percent': doc.discountPercent,
       'discount_amount': doc.discountAmount,
@@ -33,14 +35,27 @@ class SalesDocumentModel {
   static SalesDocument fromMap(
     Map<String, dynamic> map, {
     List<SalesDocItem> items = const [],
+    List<SalesDocument> derivedDocuments = const [],
     Customer? customer,
+    Supplier? supplier,
   }) {
+    final custId = map['customer_id'] as int?;
+    final suppId = map['supplier_id'] as int?;
     return SalesDocument(
       id: map['id'] as int?,
       docType: DocType.fromString((map['doc_type'] as String?) ?? 'invoice'),
       docNumber: map['doc_number'] as String,
-      customerId: map['customer_id'] as int?,
-      customer: customer,
+      customerId: custId,
+      customer:
+          customer ??
+          (custId == null &&
+                  !(map['doc_type'] == 'purchase_order' ||
+                      map['doc_type'] == 'material_receipt' ||
+                      map['doc_type'] == 'purchase_invoice')
+              ? const Customer(name: AppDefaults.defaultCustomerName)
+              : null),
+      supplierId: suppId,
+      supplier: supplier,
       subtotal: (map['subtotal'] as num?)?.toDouble() ?? 0.0,
       discountPercent: (map['discount_percent'] as num?)?.toDouble() ?? 0.0,
       discountAmount: (map['discount_amount'] as num?)?.toDouble() ?? 0.0,
@@ -58,6 +73,7 @@ class SalesDocumentModel {
           ? DateTime.parse(map['created_at'] as String)
           : null,
       items: items,
+      derivedDocuments: derivedDocuments,
     );
   }
 }

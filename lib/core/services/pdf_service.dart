@@ -19,8 +19,13 @@ class PdfService {
   /// Generates a PDF for any sales document type and returns the raw bytes.
   static Future<Uint8List> generateDocumentPdf(
     SalesDocument doc,
-    NumberFormat currencyFormat,
-  ) async {
+    NumberFormat currencyFormat, {
+    String businessName = 'Stock Pilot Inc.',
+    String businessAddress = '123 Business Rd.\nCity, State 12345',
+    String? businessPhone,
+    String? businessEmail,
+    String? businessWebsite,
+  }) async {
     final fontData = await rootBundle.load('assets/fonts/NotoSans-Regular.ttf');
     final font = pw.Font.ttf(fontData);
     final boldData = await rootBundle.load('assets/fonts/NotoSans-Bold.ttf');
@@ -40,6 +45,9 @@ class PdfService {
       DocType.quotation => PdfColors.orange900,
       DocType.deliveryNote => PdfColors.blue900,
       DocType.invoice => PdfColors.blue900,
+      DocType.purchaseOrder => PdfColors.purple900,
+      DocType.materialReceipt => PdfColors.teal900,
+      DocType.purchaseInvoice => PdfColors.purple900,
     };
 
     final isDeliveryNote = doc.docType == DocType.deliveryNote;
@@ -100,14 +108,19 @@ class PdfService {
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Text(
-                      'Stock Pilot Inc.',
+                      businessName,
                       style: pw.TextStyle(
                         fontSize: 16,
                         fontWeight: pw.FontWeight.bold,
                       ),
                     ),
-                    pw.Text('123 Business Rd.'),
-                    pw.Text('City, State 12345'),
+                    for (var line in businessAddress.split('\n')) pw.Text(line),
+                    if (businessPhone != null && businessPhone.isNotEmpty)
+                      pw.Text('Phone: $businessPhone'),
+                    if (businessEmail != null && businessEmail.isNotEmpty)
+                      pw.Text('Email: $businessEmail'),
+                    if (businessWebsite != null && businessWebsite.isNotEmpty)
+                      pw.Text(businessWebsite),
                   ],
                 ),
               ],
@@ -152,15 +165,28 @@ class PdfService {
                           currencyFormat,
                         ),
                         pw.SizedBox(height: 4),
-                        if (doc.discountAmount > 0) ...[
+                        // Calculate item-level discounts
+                        if (doc.items.any((i) => i.discountAmount > 0)) ...[
                           _buildSummaryRow(
-                            'Discount (${doc.discountPercent.toStringAsFixed(1)}%)',
-                            -doc.discountAmount,
+                            'Item Discounts',
+                            -doc.items.fold<double>(
+                              0,
+                              (sum, i) => sum + i.discountAmount,
+                            ),
                             currencyFormat,
                           ),
                           pw.SizedBox(height: 4),
                         ],
                         _buildSummaryRow('Tax', doc.taxAmount, currencyFormat),
+                        pw.SizedBox(height: 4),
+                        if (doc.discountAmount > 0) ...[
+                          _buildSummaryRow(
+                            'Additional Discount',
+                            -doc.discountAmount,
+                            currencyFormat,
+                          ),
+                          pw.SizedBox(height: 4),
+                        ],
                         pw.Divider(),
                         _buildSummaryRow(
                           'Grand Total',
@@ -220,7 +246,7 @@ class PdfService {
     }
 
     return pw.TableHelper.fromTextArray(
-      headers: ['Item', 'Price', 'Qty', 'Disc %', 'Tax %', 'Total'],
+      headers: ['Item', 'Price', 'Qty', 'Disc %', 'Disc Amt', 'Tax %', 'Total'],
       headerStyle: pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
@@ -234,6 +260,7 @@ class PdfService {
         3: pw.Alignment.centerRight,
         4: pw.Alignment.centerRight,
         5: pw.Alignment.centerRight,
+        6: pw.Alignment.centerRight,
       },
       data: items.map((item) {
         return [
@@ -244,6 +271,9 @@ class PdfService {
               : item.quantity.toString(),
           item.discountPercent > 0
               ? '${item.discountPercent.toStringAsFixed(1)}%'
+              : '-',
+          item.discountAmount > 0
+              ? currencyFormat.format(item.discountAmount)
               : '-',
           item.taxPercent > 0 ? '${item.taxPercent.toStringAsFixed(1)}%' : '-',
           currencyFormat.format(item.lineTotal),
@@ -274,10 +304,23 @@ class PdfService {
   /// Platform-aware save/share dialog for the PDF.
   static Future<void> saveOrSharePdf(
     SalesDocument doc,
-    NumberFormat currencyFormat,
-  ) async {
+    NumberFormat currencyFormat, {
+    String businessName = 'Stock Pilot Inc.',
+    String businessAddress = '123 Business Rd.\nCity, State 12345',
+    String? businessPhone,
+    String? businessEmail,
+    String? businessWebsite,
+  }) async {
     try {
-      final bytes = await generateDocumentPdf(doc, currencyFormat);
+      final bytes = await generateDocumentPdf(
+        doc,
+        currencyFormat,
+        businessName: businessName,
+        businessAddress: businessAddress,
+        businessPhone: businessPhone,
+        businessEmail: businessEmail,
+        businessWebsite: businessWebsite,
+      );
       final filename = '${doc.docNumber}.pdf';
 
       if (AdaptiveLayout.isDesktopOS) {

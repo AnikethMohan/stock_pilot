@@ -4,11 +4,16 @@ library;
 import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
 import 'package:stock_pilot/features/sales/domain/entities/sales_document.dart';
+import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
 
 abstract class SalesRepository {
   // ─── Customers ─────────────────────────────
   Future<List<Customer>> getCustomers({String? searchQuery});
   Future<Customer> saveCustomer(Customer customer);
+
+  // ─── Suppliers ─────────────────────────────
+  Future<List<Supplier>> getSuppliers({String? searchQuery});
+  Future<Supplier> saveSupplier(Supplier supplier);
 
   // ─── Sales Documents ───────────────────────
   Future<String> getNextDocNumber(DocType type);

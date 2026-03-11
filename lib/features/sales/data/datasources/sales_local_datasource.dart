@@ -8,6 +8,8 @@ import 'package:stock_pilot/features/sales/data/models/customer_model.dart';
 import 'package:stock_pilot/features/sales/data/models/sales_document_model.dart';
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
 import 'package:stock_pilot/features/sales/domain/entities/sales_document.dart';
+import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
+import 'package:stock_pilot/features/purchases/data/models/supplier_model.dart';
 import 'package:stock_pilot/features/transactions/data/models/transaction_model.dart';
 import 'package:stock_pilot/features/transactions/domain/entities/stock_transaction.dart';
 
@@ -52,6 +54,44 @@ class SalesLocalDataSource {
         whereArgs: [customer.id],
       );
       return customer;
+    }
+  }
+
+  // ─── Suppliers ───────────────────────────────────────────────────
+
+  Future<List<Supplier>> getSuppliers({String? searchQuery}) async {
+    final db = await _dbHelper.database;
+    final where = (searchQuery != null && searchQuery.isNotEmpty)
+        ? 'name LIKE ? OR phone LIKE ? OR email LIKE ?'
+        : null;
+    final whereArgs = where != null
+        ? ['%$searchQuery%', '%$searchQuery%', '%$searchQuery%']
+        : null;
+
+    final rows = await db.query(
+      'suppliers',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'name ASC',
+    );
+    return rows.map(SupplierModel.fromMap).toList();
+  }
+
+  Future<Supplier> saveSupplier(Supplier supplier) async {
+    final db = await _dbHelper.database;
+    final map = SupplierModel.toMap(supplier);
+
+    if (supplier.id == null) {
+      final id = await db.insert('suppliers', map);
+      return supplier.copyWith(id: id);
+    } else {
+      await db.update(
+        'suppliers',
+        map,
+        where: 'id = ?',
+        whereArgs: [supplier.id],
+      );
+      return supplier;
     }
   }
 
@@ -104,13 +144,34 @@ class SalesLocalDataSource {
           customer = CustomerModel.fromMap(custRows.first);
         }
       }
+
+      final supplierId = r['supplier_id'] as int?;
+      Supplier? supplier;
+      if (supplierId != null) {
+        final suppRows = await db.query(
+          'suppliers',
+          where: 'id = ?',
+          whereArgs: [supplierId],
+        );
+        if (suppRows.isNotEmpty) {
+          supplier = SupplierModel.fromMap(suppRows.first);
+        }
+      }
+
       final itemRows = await db.query(
         'sales_document_items',
         where: 'document_id = ?',
         whereArgs: [id],
       );
       final items = itemRows.map(SalesDocItemModel.fromMap).toList();
-      docs.add(SalesDocumentModel.fromMap(r, items: items, customer: customer));
+      docs.add(
+        SalesDocumentModel.fromMap(
+          r,
+          items: items,
+          customer: customer,
+          supplier: supplier,
+        ),
+      );
     }
 
     return docs;
@@ -151,7 +212,35 @@ class SalesLocalDataSource {
       }
     }
 
-    return SalesDocumentModel.fromMap(docMap, items: items, customer: customer);
+    final supplierId = docMap['supplier_id'] as int?;
+    Supplier? supplier;
+    if (supplierId != null) {
+      final suppRows = await db.query(
+        'suppliers',
+        where: 'id = ?',
+        whereArgs: [supplierId],
+      );
+      if (suppRows.isNotEmpty) {
+        supplier = SupplierModel.fromMap(suppRows.first);
+      }
+    }
+
+    final derivedRows = await db.query(
+      'sales_documents',
+      where: 'source_doc_id = ?',
+      whereArgs: [id],
+    );
+    final derivedDocs = derivedRows
+        .map((r) => SalesDocumentModel.fromMap(r))
+        .toList();
+
+    return SalesDocumentModel.fromMap(
+      docMap,
+      items: items,
+      customer: customer,
+      supplier: supplier,
+      derivedDocuments: derivedDocs,
+    );
   }
 
   /// Save a document as draft (insert or update).
@@ -161,7 +250,8 @@ class SalesLocalDataSource {
     return db.transaction((txn) async {
       // Handle customer save
       int? customerId = doc.customerId;
-      if (doc.customer != null) {
+      if (doc.customer != null &&
+          doc.customer!.name != AppDefaults.defaultCustomerName) {
         final custMap = CustomerModel.toMap(doc.customer!);
         if (doc.customer!.id == null) {
           customerId = await txn.insert('customers', custMap);
@@ -174,9 +264,31 @@ class SalesLocalDataSource {
           );
           customerId = doc.customer!.id;
         }
+      } else if (doc.customer?.name == AppDefaults.defaultCustomerName) {
+        customerId = null; // Do not save cash customer to DB
       }
 
-      final docToSave = doc.copyWith(customerId: customerId);
+      // Handle supplier save
+      int? supplierId = doc.supplierId;
+      if (doc.supplier != null) {
+        final suppMap = SupplierModel.toMap(doc.supplier!);
+        if (doc.supplier!.id == null) {
+          supplierId = await txn.insert('suppliers', suppMap);
+        } else {
+          await txn.update(
+            'suppliers',
+            suppMap,
+            where: 'id = ?',
+            whereArgs: [doc.supplier!.id],
+          );
+          supplierId = doc.supplier!.id;
+        }
+      }
+
+      final docToSave = doc.copyWith(
+        customerId: customerId,
+        supplierId: supplierId,
+      );
       final docMap = SalesDocumentModel.toMap(docToSave);
 
       int returnedDocId;
@@ -209,6 +321,7 @@ class SalesLocalDataSource {
       return docToSave.copyWith(
         id: returnedDocId,
         customer: doc.customer?.copyWith(id: customerId),
+        supplier: doc.supplier?.copyWith(id: supplierId),
       );
     });
   }
@@ -220,7 +333,11 @@ class SalesLocalDataSource {
 
     return db.transaction((txn) async {
       final bool affectsStock =
-          doc.docType == DocType.deliveryNote || doc.docType == DocType.invoice;
+          doc.docType == DocType.deliveryNote ||
+          doc.docType == DocType.invoice ||
+          doc.docType == DocType.materialReceipt;
+
+      final bool isRestock = doc.docType == DocType.materialReceipt;
 
       if (affectsStock) {
         // 1. Check stock settings
@@ -246,9 +363,11 @@ class SalesLocalDataSource {
           }
 
           final currentQty = productRows.first['quantity_on_hand'] as double;
-          final newQty = currentQty - item.quantity;
+          final newQty = isRestock
+              ? currentQty + item.quantity
+              : currentQty - item.quantity;
 
-          if (newQty < 0 && !allowNegative) {
+          if (newQty < 0 && !allowNegative && !isRestock) {
             throw ValidationFailure(
               'Cannot sell ${item.quantity} of ${item.productName}. '
               'Only $currentQty in stock.',
@@ -271,8 +390,10 @@ class SalesLocalDataSource {
             productId: item.productId,
             sku: item.sku,
             timestamp: DateTime.now(),
-            changeAmount: -item.quantity,
-            reason: TransactionReason.sale,
+            changeAmount: isRestock ? item.quantity : -item.quantity,
+            reason: isRestock
+                ? TransactionReason.restock
+                : TransactionReason.sale,
             resultingTotal: newQty,
             notes: '${doc.docType.label} ${doc.docNumber}',
           );
@@ -285,7 +406,8 @@ class SalesLocalDataSource {
 
       // Handle customer
       int? customerId = confirmedDoc.customerId;
-      if (confirmedDoc.customer != null) {
+      if (confirmedDoc.customer != null &&
+          confirmedDoc.customer!.name != 'Cash customer') {
         final custMap = CustomerModel.toMap(confirmedDoc.customer!);
         if (confirmedDoc.customer!.id == null) {
           customerId = await txn.insert('customers', custMap);
@@ -298,9 +420,32 @@ class SalesLocalDataSource {
           );
           customerId = confirmedDoc.customer!.id;
         }
+      } else if (confirmedDoc.customer?.name ==
+          AppDefaults.defaultCustomerName) {
+        customerId = null; // Do not save cash customer to DB
       }
 
-      final docToSave = confirmedDoc.copyWith(customerId: customerId);
+      // Handle supplier
+      int? supplierId = confirmedDoc.supplierId;
+      if (confirmedDoc.supplier != null) {
+        final suppMap = SupplierModel.toMap(confirmedDoc.supplier!);
+        if (confirmedDoc.supplier!.id == null) {
+          supplierId = await txn.insert('suppliers', suppMap);
+        } else {
+          await txn.update(
+            'suppliers',
+            suppMap,
+            where: 'id = ?',
+            whereArgs: [confirmedDoc.supplier!.id],
+          );
+          supplierId = confirmedDoc.supplier!.id;
+        }
+      }
+
+      final docToSave = confirmedDoc.copyWith(
+        customerId: customerId,
+        supplierId: supplierId,
+      );
       final docMap = SalesDocumentModel.toMap(docToSave);
 
       int returnedDocId;
@@ -332,9 +477,70 @@ class SalesLocalDataSource {
         );
       }
 
+      // 5. Update source PO status for partial/full receipts
+      if (docToSave.docType == DocType.materialReceipt &&
+          docToSave.sourceDocId != null) {
+        final poRows = await txn.query(
+          'sales_documents',
+          where: 'id = ? AND doc_type = ?',
+          whereArgs: [docToSave.sourceDocId, DocType.purchaseOrder.value],
+        );
+        if (poRows.isNotEmpty) {
+          final poId = docToSave.sourceDocId!;
+
+          final poItemsRows = await txn.query(
+            'sales_document_items',
+            where: 'document_id = ?',
+            whereArgs: [poId],
+          );
+          double totalPoQty = 0;
+          for (final row in poItemsRows) {
+            totalPoQty += (row['quantity'] as num).toDouble();
+          }
+
+          final mrRows = await txn.query(
+            'sales_documents',
+            columns: ['id'],
+            where: 'source_doc_id = ? AND status = ?',
+            whereArgs: [poId, DocStatus.confirmed.value],
+          );
+
+          double totalMrQty = 0;
+          for (final mrRow in mrRows) {
+            final mrId = mrRow['id'] as int;
+            final mrItemsRows = await txn.query(
+              'sales_document_items',
+              where: 'document_id = ?',
+              whereArgs: [mrId],
+            );
+            for (final row in mrItemsRows) {
+              totalMrQty += (row['quantity'] as num).toDouble();
+            }
+          }
+
+          // Also include the current MR being confirmed in the count,
+          // since it might not be committed yet if we query mid-transaction.
+          // Wait, 'mrRows' query will catch it if returnedDocId was already updated
+          // above! Yes, returnedDocId was updated to 'confirmed' at line 456. So it's handled.
+
+          final newPoStatus = totalMrQty >= totalPoQty
+              ? DocStatus.received.value
+              : DocStatus.partiallyReceived.value;
+
+          await txn.update(
+            'sales_documents',
+            {'status': newPoStatus},
+            where: 'id = ?',
+            whereArgs: [poId],
+          );
+        }
+      }
+
       return docToSave.copyWith(
         id: returnedDocId,
         customer: confirmedDoc.customer?.copyWith(id: customerId),
+        supplier: confirmedDoc.supplier?.copyWith(id: supplierId),
+        status: DocStatus.confirmed, // ensure UI updates to confirmed
       );
     });
   }
@@ -352,6 +558,8 @@ class SalesLocalDataSource {
       docNumber: newDocNumber,
       customer: sourceDoc.customer,
       customerId: sourceDoc.customerId,
+      supplier: sourceDoc.supplier,
+      supplierId: sourceDoc.supplierId,
       // Clear item IDs so they are treated as new insertions in the new document
       items: sourceDoc.items.map((i) => i.copyWith(id: null)).toList(),
       subtotal: sourceDoc.subtotal,

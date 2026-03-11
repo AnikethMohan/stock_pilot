@@ -166,4 +166,51 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setDefaultCurrency(String code) =>
       _ds.setSetting(SettingsKeys.defaultCurrency, code);
+
+  // Business Info
+  @override
+  Future<String> getBusinessName() async {
+    return (await _ds.getSetting(SettingsKeys.businessName)) ?? 'Stock Pilot Inc.';
+  }
+
+  @override
+  Future<void> setBusinessName(String value) =>
+      _ds.setSetting(SettingsKeys.businessName, value);
+
+  @override
+  Future<String> getBusinessAddress() async {
+    return (await _ds.getSetting(SettingsKeys.businessAddress)) ??
+        '123 Business Rd.\nCity, State 12345';
+  }
+
+  @override
+  Future<void> setBusinessAddress(String value) =>
+      _ds.setSetting(SettingsKeys.businessAddress, value);
+
+  @override
+  Future<String> getBusinessPhone() async {
+    return (await _ds.getSetting(SettingsKeys.businessPhone)) ?? '';
+  }
+
+  @override
+  Future<void> setBusinessPhone(String value) =>
+      _ds.setSetting(SettingsKeys.businessPhone, value);
+
+  @override
+  Future<String> getBusinessEmail() async {
+    return (await _ds.getSetting(SettingsKeys.businessEmail)) ?? '';
+  }
+
+  @override
+  Future<void> setBusinessEmail(String value) =>
+      _ds.setSetting(SettingsKeys.businessEmail, value);
+
+  @override
+  Future<String> getBusinessWebsite() async {
+    return (await _ds.getSetting(SettingsKeys.businessWebsite)) ?? '';
+  }
+
+  @override
+  Future<void> setBusinessWebsite(String value) =>
+      _ds.setSetting(SettingsKeys.businessWebsite, value);
 }

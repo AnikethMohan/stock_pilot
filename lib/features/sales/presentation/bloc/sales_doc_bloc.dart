@@ -23,8 +23,12 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     on<UpdateItemQuantity>(_onUpdateItemQuantity);
     on<UpdateItemPrice>(_onUpdateItemPrice);
     on<UpdateItemDiscount>(_onUpdateItemDiscount);
+    on<UpdateItemDiscountAmount>(_onUpdateItemDiscountAmount);
     on<UpdateItemTax>(_onUpdateItemTax);
     on<SelectCustomer>(_onSelectCustomer);
+    on<SelectSupplier>(_onSelectSupplier);
+    on<UpdateGlobalDiscount>(_onUpdateGlobalDiscount);
+    on<UpdateGlobalDiscountAmount>(_onUpdateGlobalDiscountAmount);
     on<UpdateNotes>(_onUpdateNotes);
     on<SaveDraft>(_onSaveDraft);
     on<ConfirmDocument>(_onConfirmDocument);
@@ -174,6 +178,26 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     emit(SalesDocBuilding(updatedDoc));
   }
 
+  void _onUpdateItemDiscountAmount(
+    UpdateItemDiscountAmount event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+
+    final updatedItems = currentDoc.items.map((item) {
+      if (item.sku == event.sku) {
+        final gross = item.unitPrice * item.quantity;
+        final discPct = gross > 0 ? (event.discountAmount / gross) * 100 : 0.0;
+        return item.copyWith(discountPercent: discPct);
+      }
+      return item;
+    }).toList();
+
+    final updatedDoc = currentDoc.copyWith(items: updatedItems).recalculate();
+    emit(SalesDocBuilding(updatedDoc));
+  }
+
   void _onUpdateItemTax(UpdateItemTax event, Emitter<SalesDocState> emit) {
     if (state is! SalesDocBuilding) return;
     final currentDoc = (state as SalesDocBuilding).activeDoc;
@@ -195,6 +219,40 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final updatedDoc = currentDoc.copyWith(
       customer: event.customer,
       customerId: event.customer.id,
+    );
+    emit(SalesDocBuilding(updatedDoc));
+  }
+
+  void _onSelectSupplier(SelectSupplier event, Emitter<SalesDocState> emit) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final updatedDoc = currentDoc.copyWith(
+      supplier: event.supplier,
+      supplierId: event.supplier.id,
+    );
+    emit(SalesDocBuilding(updatedDoc));
+  }
+
+  void _onUpdateGlobalDiscount(
+    UpdateGlobalDiscount event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final updatedDoc = currentDoc.recalculate(
+      newGlobalDiscountPercent: event.discountPercent,
+    );
+    emit(SalesDocBuilding(updatedDoc));
+  }
+
+  void _onUpdateGlobalDiscountAmount(
+    UpdateGlobalDiscountAmount event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final updatedDoc = currentDoc.recalculate(
+      newGlobalDiscount: event.discountAmount,
     );
     emit(SalesDocBuilding(updatedDoc));
   }

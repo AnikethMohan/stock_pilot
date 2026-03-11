@@ -39,6 +39,24 @@ class UpdateDefaultCurrency extends SettingsEvent {
   List<Object?> get props => [currencyCode];
 }
 
+class UpdateBusinessInfo extends SettingsEvent {
+  const UpdateBusinessInfo({
+    this.name,
+    this.address,
+    this.phone,
+    this.email,
+    this.website,
+  });
+  final String? name;
+  final String? address;
+  final String? phone;
+  final String? email;
+  final String? website;
+
+  @override
+  List<Object?> get props => [name, address, phone, email, website];
+}
+
 // ─── States ────────────────────────────────────────────────────────
 
 sealed class SettingsState extends Equatable {
@@ -57,11 +75,21 @@ class SettingsLoaded extends SettingsState {
     required this.defaultLowStockThreshold,
     required this.currencyCode,
     required this.currencySymbol,
+    this.businessName = '',
+    this.businessAddress = '',
+    this.businessPhone = '',
+    this.businessEmail = '',
+    this.businessWebsite = '',
   });
   final bool allowNegativeStock;
   final double defaultLowStockThreshold;
   final String currencyCode;
   final String currencySymbol;
+  final String businessName;
+  final String businessAddress;
+  final String businessPhone;
+  final String businessEmail;
+  final String businessWebsite;
 
   @override
   List<Object?> get props => [
@@ -69,6 +97,11 @@ class SettingsLoaded extends SettingsState {
     defaultLowStockThreshold,
     currencyCode,
     currencySymbol,
+    businessName,
+    businessAddress,
+    businessPhone,
+    businessEmail,
+    businessWebsite,
   ];
 }
 
@@ -89,6 +122,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ToggleAllowNegativeStock>(_onToggleNeg);
     on<UpdateDefaultThreshold>(_onUpdateThreshold);
     on<UpdateDefaultCurrency>(_onUpdateCurrency);
+    on<UpdateBusinessInfo>(_onUpdateBusinessInfo);
   }
 
   final SettingsRepository _repo;
@@ -99,12 +133,24 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       final threshold = await _repo.getDefaultLowStockThreshold();
       final code = await _repo.getDefaultCurrency();
       final currency = SupportedCurrency.fromCode(code);
+
+      final bName = await _repo.getBusinessName();
+      final bAddress = await _repo.getBusinessAddress();
+      final bPhone = await _repo.getBusinessPhone();
+      final bEmail = await _repo.getBusinessEmail();
+      final bWebsite = await _repo.getBusinessWebsite();
+
       emit(
         SettingsLoaded(
           allowNegativeStock: allowNeg,
           defaultLowStockThreshold: threshold,
           currencyCode: currency.code,
           currencySymbol: currency.symbol,
+          businessName: bName,
+          businessAddress: bAddress,
+          businessPhone: bPhone,
+          businessEmail: bEmail,
+          businessWebsite: bWebsite,
         ),
       );
     } catch (e) {
@@ -133,6 +179,18 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     await _repo.setDefaultCurrency(event.currencyCode);
+    add(const LoadSettings());
+  }
+
+  Future<void> _onUpdateBusinessInfo(
+    UpdateBusinessInfo event,
+    Emitter<SettingsState> emit,
+  ) async {
+    if (event.name != null) await _repo.setBusinessName(event.name!);
+    if (event.address != null) await _repo.setBusinessAddress(event.address!);
+    if (event.phone != null) await _repo.setBusinessPhone(event.phone!);
+    if (event.email != null) await _repo.setBusinessEmail(event.email!);
+    if (event.website != null) await _repo.setBusinessWebsite(event.website!);
     add(const LoadSettings());
   }
 }

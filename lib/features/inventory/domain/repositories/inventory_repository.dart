@@ -85,4 +85,16 @@ abstract class SettingsRepository {
   Future<void> setDefaultLowStockThreshold(double value);
   Future<String> getDefaultCurrency();
   Future<void> setDefaultCurrency(String code);
+
+  // Business Info
+  Future<String> getBusinessName();
+  Future<void> setBusinessName(String value);
+  Future<String> getBusinessAddress();
+  Future<void> setBusinessAddress(String value);
+  Future<String> getBusinessPhone();
+  Future<void> setBusinessPhone(String value);
+  Future<String> getBusinessEmail();
+  Future<void> setBusinessEmail(String value);
+  Future<String> getBusinessWebsite();
+  Future<void> setBusinessWebsite(String value);
 }

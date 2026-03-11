@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/features/inventory/domain/entities/product.dart';
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
+import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
 import 'package:stock_pilot/features/sales/domain/entities/sales_document.dart';
 
 sealed class SalesDocEvent extends Equatable {
@@ -93,6 +94,19 @@ class UpdateItemDiscount extends SalesDocEvent {
   List<Object?> get props => [sku, discountPercent];
 }
 
+/// Update the discount amount of a line item.
+class UpdateItemDiscountAmount extends SalesDocEvent {
+  const UpdateItemDiscountAmount({
+    required this.sku,
+    required this.discountAmount,
+  });
+  final String sku;
+  final double discountAmount;
+
+  @override
+  List<Object?> get props => [sku, discountAmount];
+}
+
 /// Update the tax percent of a line item.
 class UpdateItemTax extends SalesDocEvent {
   const UpdateItemTax({required this.sku, required this.taxPercent});
@@ -110,6 +124,33 @@ class SelectCustomer extends SalesDocEvent {
 
   @override
   List<Object?> get props => [customer];
+}
+
+/// Set the supplier for the active document.
+class SelectSupplier extends SalesDocEvent {
+  const SelectSupplier(this.supplier);
+  final Supplier supplier;
+
+  @override
+  List<Object?> get props => [supplier];
+}
+
+/// Update global discount percent.
+class UpdateGlobalDiscount extends SalesDocEvent {
+  const UpdateGlobalDiscount(this.discountPercent);
+  final double discountPercent;
+
+  @override
+  List<Object?> get props => [discountPercent];
+}
+
+/// Update global discount amount.
+class UpdateGlobalDiscountAmount extends SalesDocEvent {
+  const UpdateGlobalDiscountAmount(this.discountAmount);
+  final double discountAmount;
+
+  @override
+  List<Object?> get props => [discountAmount];
 }
 
 /// Update notes.

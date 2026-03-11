@@ -6,6 +6,7 @@ import 'package:stock_pilot/features/sales/data/datasources/sales_local_datasour
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
 import 'package:stock_pilot/features/sales/domain/entities/sales_document.dart';
 import 'package:stock_pilot/features/sales/domain/repositories/sales_repository.dart';
+import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
 
 class SalesRepositoryImpl implements SalesRepository {
   SalesRepositoryImpl({required SalesLocalDataSource dataSource})
@@ -21,6 +22,16 @@ class SalesRepositoryImpl implements SalesRepository {
   @override
   Future<Customer> saveCustomer(Customer customer) {
     return _dataSource.saveCustomer(customer);
+  }
+
+  @override
+  Future<List<Supplier>> getSuppliers({String? searchQuery}) {
+    return _dataSource.getSuppliers(searchQuery: searchQuery);
+  }
+
+  @override
+  Future<Supplier> saveSupplier(Supplier supplier) {
+    return _dataSource.saveSupplier(supplier);
   }
 
   @override

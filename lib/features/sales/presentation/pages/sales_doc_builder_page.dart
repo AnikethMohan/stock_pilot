@@ -12,6 +12,8 @@ import 'package:stock_pilot/features/inventory/domain/entities/product.dart';
 import 'package:stock_pilot/features/inventory/domain/repositories/inventory_repository.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_event.dart';
+import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
+import 'package:stock_pilot/features/purchases/presentation/pages/supplier_list_page.dart';
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
 import 'package:stock_pilot/features/sales/domain/entities/sales_document.dart';
 import 'package:stock_pilot/features/sales/presentation/pages/customer_list_page.dart';
@@ -32,6 +34,10 @@ class SalesDocBuilderPage extends StatefulWidget {
 
 class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
   TextEditingController? _autoCompleteController;
+  final _globalDiscPctController = TextEditingController();
+  final _globalDiscAmtController = TextEditingController();
+  final _globalDiscPctFocus = FocusNode();
+  final _globalDiscAmtFocus = FocusNode();
 
   @override
   void initState() {
@@ -44,6 +50,34 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
       context.read<SalesDocBloc>().add(
         StartNewDocument(type: widget.initialType ?? DocType.invoice),
       );
+    }
+  }
+
+  @override
+  void dispose() {
+    _globalDiscPctController.dispose();
+    _globalDiscAmtController.dispose();
+    _globalDiscPctFocus.dispose();
+    _globalDiscAmtFocus.dispose();
+    super.dispose();
+  }
+
+  void _updateControllers(SalesDocument doc) {
+    final pctText = doc.discountPercent > 0
+        ? doc.discountPercent.toStringAsFixed(1)
+        : '';
+    final amtText = doc.discountAmount > 0
+        ? doc.discountAmount.toStringAsFixed(2)
+        : '';
+
+    // Only update if the field is not currently focused by the user
+    if (!_globalDiscPctFocus.hasFocus &&
+        _globalDiscPctController.text != pctText) {
+      _globalDiscPctController.text = pctText;
+    }
+    if (!_globalDiscAmtFocus.hasFocus &&
+        _globalDiscAmtController.text != amtText) {
+      _globalDiscAmtController.text = amtText;
     }
   }
 
@@ -104,6 +138,9 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
             if (doc == null) {
               return const Center(child: Text('Failed to load draft'));
             }
+
+            // Sync controllers with current document state
+            _updateControllers(doc);
 
             return AdaptiveLayout.isWideScreen(
                   MediaQuery.of(context).size.width,
@@ -207,31 +244,28 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                 context,
               ).textTheme.titleSmall?.copyWith(color: Colors.white70),
             ),
-            const SizedBox(height: 8),
-            SegmentedButton<DocType>(
-              segments: DocType.values.map((type) {
-                return ButtonSegment<DocType>(
-                  value: type,
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: DocType.values.map((type) {
+                final isSelected = doc.docType == type;
+                return ChoiceChip(
                   label: Text(type.label),
-                  icon: Icon(_getDocTypeIcon(type)),
+                  avatar: Icon(
+                    _getDocTypeIcon(type),
+                    size: 18,
+                    color: isSelected ? Colors.white : Colors.white70,
+                  ),
+                  selected: isSelected,
+                  selectedColor: AppTheme.highlight.withValues(alpha: 0.3),
+                  onSelected: (bool selected) {
+                    if (selected && type != doc.docType) {
+                      context.read<SalesDocBloc>().add(SetDocType(type));
+                    }
+                  },
                 );
               }).toList(),
-              selected: {doc.docType},
-              onSelectionChanged: (newSelection) {
-                if (newSelection.first != doc.docType) {
-                  context.read<SalesDocBloc>().add(
-                    SetDocType(newSelection.first),
-                  );
-                }
-              },
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return AppTheme.highlight.withValues(alpha: 0.2);
-                  }
-                  return null;
-                }),
-              ),
             ),
           ],
         ),
@@ -244,6 +278,9 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
       DocType.quotation => Icons.description_outlined,
       DocType.deliveryNote => Icons.local_shipping_outlined,
       DocType.invoice => Icons.receipt_long_outlined,
+      DocType.purchaseOrder => Icons.shopping_cart_outlined,
+      DocType.materialReceipt => Icons.inventory_2_outlined,
+      DocType.purchaseInvoice => Icons.request_quote_outlined,
     };
   }
 
@@ -314,6 +351,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
               if (!isDeliveryNote) ...[
                 const DataColumn(label: Text('Price')),
                 const DataColumn(label: Text('Disc %')),
+                const DataColumn(label: Text('Disc Amt')),
                 const DataColumn(label: Text('Tax %')),
                 const DataColumn(label: Text('Total')),
               ],
@@ -455,6 +493,37 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                               UpdateItemDiscount(
                                 sku: item.sku,
                                 discountPercent: disc,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 70,
+                        child: TextField(
+                          controller: TextEditingController(
+                            text: item.discountAmount > 0
+                                ? item.discountAmount.toStringAsFixed(2)
+                                : '',
+                          ),
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            hintText: '0',
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 6,
+                            ),
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (val) {
+                            final discAmt = double.tryParse(val) ?? 0.0;
+                            context.read<SalesDocBloc>().add(
+                              UpdateItemDiscountAmount(
+                                sku: item.sku,
+                                discountAmount: discAmt,
                               ),
                             );
                           },
@@ -609,6 +678,25 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      // Discount Amount
+                      Expanded(
+                        child: _buildMobileField(
+                          'Disc Amt',
+                          item.discountAmount > 0
+                              ? item.discountAmount.toStringAsFixed(2)
+                              : '',
+                          (val) {
+                            final discAmt = double.tryParse(val) ?? 0.0;
+                            context.read<SalesDocBloc>().add(
+                              UpdateItemDiscountAmount(
+                                sku: item.sku,
+                                discountAmount: discAmt,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       // Tax %
                       Expanded(
                         child: _buildMobileField(
@@ -703,26 +791,62 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
               ),
             ],
 
+            if (doc.derivedDocuments.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Derived: ${doc.derivedDocuments.map((d) => '${d.docType.label} (${d.docNumber})').join(', ')}',
+                style: TextStyle(
+                  color: AppTheme.highlight.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+
             const Divider(height: 24),
 
-            // Customer Selector
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.person),
-              title: Text(doc.customer?.name ?? 'Select Customer'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                final bloc = context.read<SalesDocBloc>();
-                final selected = await Navigator.push<Customer>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const CustomerListPage(isSelectionMode: true),
+            // Customer / Supplier Selector
+            Builder(
+              builder: (context) {
+                final isPurchase =
+                    doc.docType == DocType.purchaseOrder ||
+                    doc.docType == DocType.materialReceipt ||
+                    doc.docType == DocType.purchaseInvoice;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(isPurchase ? Icons.store : Icons.person),
+                  title: Text(
+                    isPurchase
+                        ? (doc.supplier?.name ?? 'Select Supplier')
+                        : (doc.customer?.name ?? 'Select Customer'),
                   ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final bloc = context.read<SalesDocBloc>();
+                    if (isPurchase) {
+                      final selected = await Navigator.push<Supplier>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const SupplierListPage(isSelectionMode: true),
+                        ),
+                      );
+                      if (selected != null && mounted) {
+                        bloc.add(SelectSupplier(selected));
+                      }
+                    } else {
+                      final selected = await Navigator.push<Customer>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const CustomerListPage(isSelectionMode: true),
+                        ),
+                      );
+                      if (selected != null && mounted) {
+                        bloc.add(SelectCustomer(selected));
+                      }
+                    }
+                  },
                 );
-                if (selected != null && mounted) {
-                  bloc.add(SelectCustomer(selected));
-                }
               },
             ),
             const Divider(height: 24),
@@ -730,10 +854,68 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
             // Summary Totals (hide for delivery notes)
             if (!isDeliveryNote) ...[
               _buildSummaryRow('Subtotal:', doc.subtotal, currencyFormat),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+
+              // Global Discount Inputs
+              Row(
+                children: [
+                  const Expanded(child: Text('Additional disc:')),
+                  SizedBox(
+                    width: 70,
+                    child: TextField(
+                      controller: _globalDiscPctController,
+                      focusNode: _globalDiscPctFocus,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.right,
+                      decoration: const InputDecoration(
+                        suffix: Text('%'),
+                        isDense: true,
+                        hintText: '0',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        final disc = double.tryParse(val) ?? 0.0;
+                        context.read<SalesDocBloc>().add(
+                          UpdateGlobalDiscount(disc),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 100,
+                    child: TextField(
+                      controller: _globalDiscAmtController,
+                      focusNode: _globalDiscAmtFocus,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.right,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'Amount',
+                        prefixText: currencyFormat.currencySymbol,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        final discAmt = double.tryParse(val) ?? 0.0;
+                        context.read<SalesDocBloc>().add(
+                          UpdateGlobalDiscountAmount(discAmt),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               _buildSummaryRow(
-                'Discount:',
-                -doc.discountAmount,
+                'Total Discount:',
+                -doc.totalDiscountCalculated,
                 currencyFormat,
               ),
               const SizedBox(height: 8),
@@ -764,7 +946,46 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                     onPressed: isSaving
                         ? null
                         : () {
-                            context.read<SalesDocBloc>().add(const SaveDraft());
+                            final isDN = doc.docType == DocType.deliveryNote;
+                            final isMR = doc.docType == DocType.materialReceipt;
+                            final isPurchase =
+                                doc.docType == DocType.purchaseOrder ||
+                                doc.docType == DocType.materialReceipt ||
+                                doc.docType == DocType.purchaseInvoice;
+
+                            final hasNoPerson = isPurchase
+                                ? (doc.supplier == null ||
+                                      doc.supplier!.name.isEmpty ||
+                                      doc.supplier!.name == 'Select Supplier')
+                                : (doc.customer == null ||
+                                      doc.customer!.name.isEmpty ||
+                                      doc.customer!.name == 'Select Customer');
+
+                            if ((isDN || isMR) && hasNoPerson) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isPurchase
+                                        ? 'Please select a supplier for material receipt'
+                                        : 'Please select a customer for delivery note',
+                                  ),
+                                  backgroundColor: AppTheme.error,
+                                ),
+                              );
+                            } else {
+                              if (hasNoPerson && !isPurchase) {
+                                context.read<SalesDocBloc>().add(
+                                  const SelectCustomer(
+                                    Customer(
+                                      name: AppDefaults.defaultCustomerName,
+                                    ),
+                                  ),
+                                );
+                              }
+                              context.read<SalesDocBloc>().add(
+                                const SaveDraft(),
+                              );
+                            }
                           },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -792,9 +1013,46 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                     onPressed: isSaving || doc.items.isEmpty
                         ? null
                         : () {
-                            context.read<SalesDocBloc>().add(
-                              const ConfirmDocument(),
-                            );
+                            final isDN = doc.docType == DocType.deliveryNote;
+                            final isMR = doc.docType == DocType.materialReceipt;
+                            final isPurchase =
+                                doc.docType == DocType.purchaseOrder ||
+                                doc.docType == DocType.materialReceipt ||
+                                doc.docType == DocType.purchaseInvoice;
+
+                            final hasNoPerson = isPurchase
+                                ? (doc.supplier == null ||
+                                      doc.supplier!.name.isEmpty ||
+                                      doc.supplier!.name == 'Select Supplier')
+                                : (doc.customer == null ||
+                                      doc.customer!.name.isEmpty ||
+                                      doc.customer!.name == 'Select Customer');
+
+                            if ((isDN || isMR) && hasNoPerson) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isPurchase
+                                        ? 'Please select a supplier for material receipt'
+                                        : 'Please select a customer for delivery note',
+                                  ),
+                                  backgroundColor: AppTheme.error,
+                                ),
+                              );
+                            } else {
+                              if (hasNoPerson && !isPurchase) {
+                                context.read<SalesDocBloc>().add(
+                                  const SelectCustomer(
+                                    Customer(
+                                      name: AppDefaults.defaultCustomerName,
+                                    ),
+                                  ),
+                                );
+                              }
+                              context.read<SalesDocBloc>().add(
+                                const ConfirmDocument(),
+                              );
+                            }
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.success,

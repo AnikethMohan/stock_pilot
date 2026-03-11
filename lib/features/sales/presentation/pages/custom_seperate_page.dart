@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/core/services/pdf_service.dart';
 import 'package:stock_pilot/core/theme/app_theme.dart';
+import 'package:stock_pilot/core/utils/helper_func_extensions.dart';
 import 'package:stock_pilot/features/sales/domain/entities/sales_document.dart';
 import 'package:stock_pilot/features/sales/domain/repositories/sales_repository.dart';
 import 'package:stock_pilot/features/sales/presentation/bloc/sales_doc_bloc.dart';
@@ -16,140 +17,104 @@ import 'package:stock_pilot/features/sales/presentation/bloc/sales_doc_state.dar
 import 'package:stock_pilot/features/sales/presentation/pages/sales_doc_builder_page.dart';
 import 'package:stock_pilot/features/settings/presentation/bloc/settings_bloc.dart';
 
-class SalesDocListPage extends StatefulWidget {
-  const SalesDocListPage({super.key});
+class CustomSeparatePage extends StatefulWidget {
+  const CustomSeparatePage({super.key, required this.docType});
+
+  final DocType docType;
 
   @override
-  State<SalesDocListPage> createState() => _SalesDocListPageState();
+  State<CustomSeparatePage> createState() => _CustomSeparatePageState();
 }
 
-class _SalesDocListPageState extends State<SalesDocListPage> {
-  DocType? _selectedFilter;
-
+class _CustomSeparatePageState extends State<CustomSeparatePage> {
   @override
   void initState() {
     super.initState();
-    context.read<SalesDocBloc>().add(const LoadDocuments());
+    context.read<SalesDocBloc>().add(LoadDocuments(typeFilter: widget.docType));
+  }
+
+  @override
+  void didUpdateWidget(CustomSeparatePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.docType != widget.docType) {
+      context.read<SalesDocBloc>().add(
+        LoadDocuments(typeFilter: widget.docType),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sales and Purchase')),
-      body: Column(
-        children: [
-          // Filter Chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('All', null),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Quotations', DocType.quotation),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Delivery Notes', DocType.deliveryNote),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Invoices', DocType.invoice),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Purchase Orders', DocType.purchaseOrder),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    'Material Receipts',
-                    DocType.materialReceipt,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    'Purchase Invoices',
-                    DocType.purchaseInvoice,
-                  ),
-                ],
-              ),
-            ),
-          ),
+      appBar: AppBar(
+        title: Text(widget.docType.value.capitalizeUnderscoreWordsOnlyFirst()),
+      ),
+      body: BlocBuilder<SalesDocBloc, SalesDocState>(
+        buildWhen: (prev, curr) =>
+            curr is SalesDocListLoaded || curr is SalesDocLoading,
+        builder: (context, state) {
+          final settingsState = context.watch<SettingsBloc>().state;
+          final currencySymbol = settingsState is SettingsLoaded
+              ? settingsState.currencySymbol
+              : '\$';
+          final currencyFormat = NumberFormat.currency(
+            symbol: currencySymbol,
+            decimalDigits: 2,
+          );
 
-          // Document List
-          Expanded(
-            child: BlocBuilder<SalesDocBloc, SalesDocState>(
-              buildWhen: (prev, curr) =>
-                  curr is SalesDocListLoaded || curr is SalesDocLoading,
-              builder: (context, state) {
-                final settingsState = context.watch<SettingsBloc>().state;
-                final currencySymbol = settingsState is SettingsLoaded
-                    ? settingsState.currencySymbol
-                    : '\$';
-                final currencyFormat = NumberFormat.currency(
-                  symbol: currencySymbol,
-                  decimalDigits: 2,
-                );
+          if (state is SalesDocLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                if (state is SalesDocLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (state is SalesDocListLoaded) {
-                  if (state.documents.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.description_outlined,
-                            size: 64,
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text('No documents found.'),
-                        ],
-                      ),
-                    );
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: state.documents.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 4),
-                    itemBuilder: (context, index) {
-                      final doc = state.documents[index];
-                      return _buildDocCard(doc, currencyFormat);
-                    },
-                  );
-                }
-
-                return const SizedBox.shrink();
+          if (state is SalesDocListLoaded) {
+            if (state.documents.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.description_outlined,
+                      size: 64,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('No documents found.'),
+                  ],
+                ),
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              itemCount: state.documents.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 4),
+              itemBuilder: (context, index) {
+                final doc = state.documents[index];
+                return _buildDocCard(doc, currencyFormat);
               },
-            ),
-          ),
-        ],
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
-        label: const Text('New Document'),
+        label: Text(
+          'New ${widget.docType.value.capitalizeUnderscoreWordsOnlyFirst()}',
+        ),
         onPressed: () async {
           final bloc = context.read<SalesDocBloc>();
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const SalesDocBuilderPage()),
+            MaterialPageRoute(
+              builder: (_) => SalesDocBuilderPage(initialType: widget.docType),
+            ),
           );
           if (mounted) {
-            bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+            bloc.add(LoadDocuments(typeFilter: widget.docType));
           }
         },
       ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, DocType? type) {
-    final isSelected = _selectedFilter == type;
-    return FilterChip(
-      selected: isSelected,
-      label: Text(label),
-      selectedColor: AppTheme.highlight.withValues(alpha: 0.2),
-      checkmarkColor: AppTheme.highlight,
-      onSelected: (_) {
-        setState(() => _selectedFilter = type);
-        context.read<SalesDocBloc>().add(LoadDocuments(typeFilter: type));
-      },
     );
   }
 
@@ -318,7 +283,7 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(LoadDocuments(typeFilter: widget.docType));
             }
           }
         }
@@ -338,7 +303,7 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(LoadDocuments(typeFilter: widget.docType));
             }
           }
         }
@@ -361,7 +326,7 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(LoadDocuments(typeFilter: widget.docType));
             }
           }
         }
@@ -384,7 +349,7 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(LoadDocuments(typeFilter: widget.docType));
             }
           }
         }
@@ -448,7 +413,7 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
       MaterialPageRoute(builder: (_) => SalesDocBuilderPage(document: doc)),
     );
     if (mounted) {
-      bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+      bloc.add(LoadDocuments(typeFilter: widget.docType));
     }
   }
 }

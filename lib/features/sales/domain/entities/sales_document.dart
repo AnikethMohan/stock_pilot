@@ -4,6 +4,7 @@ library;
 import 'package:equatable/equatable.dart';
 import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
+import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
 
 class SalesDocument extends Equatable {
   const SalesDocument({
@@ -12,7 +13,10 @@ class SalesDocument extends Equatable {
     required this.docNumber,
     this.customer,
     this.customerId,
+    this.supplier,
+    this.supplierId,
     this.items = const [],
+    this.derivedDocuments = const [],
     this.subtotal = 0.0,
     this.discountPercent = 0.0,
     this.discountAmount = 0.0,
@@ -32,10 +36,13 @@ class SalesDocument extends Equatable {
   final String docNumber;
   final Customer? customer;
   final int? customerId;
+  final Supplier? supplier;
+  final int? supplierId;
   final List<SalesDocItem> items;
+  final List<SalesDocument> derivedDocuments;
   final double subtotal;
-  final double discountPercent;
-  final double discountAmount;
+  final double discountPercent; // Used as Global Discount Percent
+  final double discountAmount; // Used as Global Discount Amount
   final double taxAmount;
   final double grandTotal;
   final DocStatus status;
@@ -46,24 +53,49 @@ class SalesDocument extends Equatable {
   final String notes;
   final DateTime? createdAt;
 
-  /// Recalculate all totals from current items.
-  SalesDocument recalculate() {
+  /// Recalculate all totals from current items and global discount.
+  SalesDocument recalculate({
+    double? newGlobalDiscount,
+    double? newGlobalDiscountPercent,
+  }) {
     final sub = items.fold<double>(
       0,
       (sum, i) => sum + (i.unitPrice * i.quantity),
     );
-    final disc = items.fold<double>(0, (sum, i) => sum + i.discountAmount);
     final tax = items.fold<double>(0, (sum, i) => sum + i.taxAmount);
-    final afterDiscount = sub - disc;
-    final grand = afterDiscount + tax;
-    final discPct = sub > 0 ? (disc / sub) * 100 : 0.0;
+    final totalLineItems = items.fold<double>(0, (sum, i) => sum + i.lineTotal);
+
+    double globalDisc = newGlobalDiscount ?? discountAmount;
+    double globalDiscPct = newGlobalDiscountPercent ?? discountPercent;
+
+    if (newGlobalDiscountPercent != null) {
+      globalDisc = sub * (newGlobalDiscountPercent / 100);
+    } else if (newGlobalDiscount != null) {
+      globalDiscPct = sub > 0 ? (newGlobalDiscount / sub) * 100 : 0.0;
+    } else {
+      // Refresh global discount amount based on current subtotal if percent exists
+      if (globalDiscPct > 0) {
+        globalDisc = sub * (globalDiscPct / 100);
+      }
+    }
+
+    // Grand total is the sum of all item line totals (which already account for item-level discounts and tax)
+    // minus the global document-level discount.
+    final grand = totalLineItems - globalDisc;
+
     return copyWith(
       subtotal: sub,
-      discountPercent: discPct,
-      discountAmount: disc,
+      discountPercent: globalDiscPct,
+      discountAmount: globalDisc,
       taxAmount: tax,
       grandTotal: grand,
     );
+  }
+
+  /// Total discount including item-level and global discounts.
+  double get totalDiscountCalculated {
+    final itemDiscs = items.fold<double>(0, (sum, i) => sum + i.discountAmount);
+    return itemDiscs + discountAmount;
   }
 
   SalesDocument copyWith({
@@ -72,7 +104,10 @@ class SalesDocument extends Equatable {
     String? docNumber,
     Customer? customer,
     int? customerId,
+    Supplier? supplier,
+    int? supplierId,
     List<SalesDocItem>? items,
+    List<SalesDocument>? derivedDocuments,
     double? subtotal,
     double? discountPercent,
     double? discountAmount,
@@ -92,7 +127,10 @@ class SalesDocument extends Equatable {
       docNumber: docNumber ?? this.docNumber,
       customer: customer ?? this.customer,
       customerId: customerId ?? this.customerId,
+      supplier: supplier ?? this.supplier,
+      supplierId: supplierId ?? this.supplierId,
       items: items ?? this.items,
+      derivedDocuments: derivedDocuments ?? this.derivedDocuments,
       subtotal: subtotal ?? this.subtotal,
       discountPercent: discountPercent ?? this.discountPercent,
       discountAmount: discountAmount ?? this.discountAmount,
@@ -115,7 +153,10 @@ class SalesDocument extends Equatable {
     docNumber,
     customer,
     customerId,
+    supplier,
+    supplierId,
     items,
+    derivedDocuments,
     subtotal,
     discountPercent,
     discountAmount,

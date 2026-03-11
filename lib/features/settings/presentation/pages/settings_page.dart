@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/core/theme/app_theme.dart';
 import 'package:stock_pilot/features/settings/presentation/bloc/settings_bloc.dart';
+import 'package:stock_pilot/features/settings/presentation/pages/business_info_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -27,6 +28,30 @@ class SettingsPage extends StatelessWidget {
           children: [
             Text('Settings', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 24),
+
+            // ─── Business Information ──────────────────────────
+            Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  child: Icon(Icons.business_rounded, size: 20),
+                ),
+                title: const Text('Business Information'),
+                subtitle: const Text(
+                  'Name, Address, and Contact info for PDF documents.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BusinessInfoPage()),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 12),
 
             Card(
               child: SwitchListTile(
@@ -138,8 +163,7 @@ class SettingsPage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'Version 1.0.0\n'
-                      'A universal, offline-first Inventory Management System.\n'
-                      'Built with Flutter, BLoC, and SQLite.',
+                      'A universal, offline-first Inventory Management System.\n',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],

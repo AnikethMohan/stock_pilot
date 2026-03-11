@@ -41,11 +41,17 @@ enum TransactionReason {
   }
 }
 
-/// Document types for sales documents.
+/// Document types for sales and purchase documents.
 enum DocType {
+  // Sales
   quotation('quotation', 'QUO'),
   deliveryNote('delivery_note', 'DN'),
-  invoice('invoice', 'INV');
+  invoice('invoice', 'INV'),
+
+  // Purchases
+  purchaseOrder('purchase_order', 'PO'),
+  materialReceipt('material_receipt', 'MR'),
+  purchaseInvoice('purchase_invoice', 'PI');
 
   const DocType(this.value, this.prefix);
   final String value;
@@ -54,7 +60,10 @@ enum DocType {
   String get label => switch (this) {
     DocType.quotation => 'Quotation',
     DocType.deliveryNote => 'Delivery Note',
-    DocType.invoice => 'Invoice',
+    DocType.invoice => 'Sales Invoice',
+    DocType.purchaseOrder => 'Purchase Order',
+    DocType.materialReceipt => 'Material Receipt',
+    DocType.purchaseInvoice => 'Purchase Invoice',
   };
 
   static DocType fromString(String value) {
@@ -69,7 +78,9 @@ enum DocType {
 enum DocStatus {
   draft('draft'),
   confirmed('confirmed'),
-  cancelled('cancelled');
+  cancelled('cancelled'),
+  partiallyReceived('partially_received'),
+  received('received');
 
   const DocStatus(this.value);
   final String value;
@@ -78,6 +89,8 @@ enum DocStatus {
     DocStatus.draft => 'Draft',
     DocStatus.confirmed => 'Confirmed',
     DocStatus.cancelled => 'Cancelled',
+    DocStatus.partiallyReceived => 'Partially Received',
+    DocStatus.received => 'Received',
   };
 
   static DocStatus fromString(String value) {
@@ -95,8 +108,9 @@ class AppDefaults {
   static const double defaultLowStockThreshold = 10.0;
   static const bool defaultAllowNegativeStock = false;
   static const String dbName = 'stock_pilot.db';
-  static const int dbVersion = 3;
-  static const String defaultCurrencyCode = 'USD';
+  static const int dbVersion = 4;
+  static const String defaultCurrencyCode = 'INR';
+  static const String defaultCustomerName = 'Cash customer';
 }
 
 /// Settings keys used in the settings table.
@@ -106,6 +120,13 @@ class SettingsKeys {
   static const String allowNegativeStock = 'allow_negative_stock';
   static const String defaultLowStockThreshold = 'default_low_stock_threshold';
   static const String defaultCurrency = 'default_currency';
+
+  // Business Info
+  static const String businessName = 'business_name';
+  static const String businessAddress = 'business_address';
+  static const String businessPhone = 'business_phone';
+  static const String businessEmail = 'business_email';
+  static const String businessWebsite = 'business_website';
 }
 
 /// A supported currency with its ISO code, symbol, and display name.

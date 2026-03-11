@@ -98,6 +98,9 @@ class DatabaseHelper {
     // ── V3 tables ──────────────────────────────────────────────────
     await _createV3Tables(db);
 
+    // ── V4 tables ──────────────────────────────────────────────────
+    await _createV4Tables(db);
+
     // Seed default settings
     await db.insert('settings', {
       'key': SettingsKeys.allowNegativeStock,
@@ -121,6 +124,10 @@ class DatabaseHelper {
     if (oldVersion < 3) {
       await _createV3Tables(db);
       await _migrateV2ToV3(db);
+    }
+    if (oldVersion < 4) {
+      await _createV4Tables(db);
+      await _migrateV3ToV4(db);
     }
   }
 
@@ -254,5 +261,26 @@ class DatabaseHelper {
         });
       }
     }
+  }
+
+  /// V4 schema: suppliers, add supplier_id to sales_documents.
+  Future<void> _createV4Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS suppliers (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        phone      TEXT,
+        email      TEXT,
+        address    TEXT,
+        created_at TEXT    NOT NULL
+      )
+    ''');
+  }
+
+  /// Migrate existing V3 sales_documents to include supplier_id.
+  Future<void> _migrateV3ToV4(Database db) async {
+    await db.execute(
+      'ALTER TABLE sales_documents ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id)',
+    );
   }
 }
