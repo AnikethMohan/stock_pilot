@@ -359,7 +359,9 @@ class SalesLocalDataSource {
           );
 
           if (productRows.isEmpty) {
-            throw ValidationFailure('Product ${item.sku} not found in DB.');
+            throw ValidationFailure(
+              'Product ${item.itemCode} not found in DB.',
+            );
           }
 
           final currentQty = productRows.first['quantity_on_hand'] as double;
@@ -388,7 +390,7 @@ class SalesLocalDataSource {
           // Insert stock transaction history
           final stockTxn = StockTransaction(
             productId: item.productId,
-            sku: item.sku,
+            itemCode: item.itemCode,
             timestamp: DateTime.now(),
             changeAmount: isRestock ? item.quantity : -item.quantity,
             reason: isRestock

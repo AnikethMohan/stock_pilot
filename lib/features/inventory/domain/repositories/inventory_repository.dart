@@ -9,7 +9,7 @@ abstract class InventoryRepository {
   /// Get products with optional filters and pagination.
   Future<List<Product>> getProducts({
     String? searchQuery,
-    String? category,
+    String? productGroup,
     bool? lowStockOnly,
     int limit,
     int offset,
@@ -18,15 +18,15 @@ abstract class InventoryRepository {
   /// Get total product count for the given filters (for pagination).
   Future<int> getProductCount({
     String? searchQuery,
-    String? category,
+    String? productGroup,
     bool? lowStockOnly,
   });
 
   /// Get a single product by ID.
   Future<Product?> getProductById(int id);
 
-  /// Get a single product by SKU.
-  Future<Product?> getProductBySku(String sku);
+  /// Get a single product by Item Code.
+  Future<Product?> getProductByItemCode(String itemCode);
 
   /// Add a new product, returns its ID.
   Future<int> addProduct(Product product);
@@ -46,8 +46,8 @@ abstract class InventoryRepository {
     String notes,
   });
 
-  /// Get all distinct categories.
-  Future<List<String>> getCategories();
+  /// Get all distinct product groups.
+  Future<List<String>> getProductGroups();
 
   /// CSV Upsert — insert or increment stock for a batch of products.
   /// Calls [onProgress] with (processedCount, totalCount) during import.
@@ -58,7 +58,7 @@ abstract class InventoryRepository {
 
   // ─── Dashboard aggregations ──────────────────────────────────────
 
-  /// Sum of (unit_price * quantity_on_hand) for all products.
+  /// Sum of (sales_rate * quantity_on_hand) for all products.
   Future<double> getTotalInventoryValue();
 
   /// Returns the total potential profit based on current stock.

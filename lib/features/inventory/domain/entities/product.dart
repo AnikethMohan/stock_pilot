@@ -7,14 +7,24 @@ import 'package:stock_pilot/core/constants/app_constants.dart';
 class Product extends Equatable {
   const Product({
     this.id,
-    required this.sku,
-    required this.name,
+    required this.itemCode,
+    this.barcode = '',
+    required this.itemName,
     this.brand = '',
-    this.category = '',
-    this.moreDescription = '',
+    this.productGroup = '',
+    this.detailedDescription = '',
     this.description = '',
-    this.unitPrice = 0.0,
+    this.salesRate = 0.0,
     this.costPrice = 0.0,
+    this.purchaseRate = 0.0,
+    this.wholesalePrice = 0.0,
+    this.mrp = 0.0,
+    this.profitPercentage = 0.0,
+    this.minimumSaleRate = 0.0,
+    this.addinPartNumber1 = '',
+    this.addinPartNumber2 = '',
+    this.image = '',
+    this.otherLanguage = '',
     this.quantityOnHand = 0.0,
     this.unitOfMeasure = UnitOfMeasure.pieces,
     this.lowStockThreshold = 10.0,
@@ -27,14 +37,24 @@ class Product extends Equatable {
   });
 
   final int? id;
-  final String sku;
-  final String name;
+  final String itemCode;
+  final String barcode;
+  final String itemName;
   final String brand;
-  final String category;
+  final String? productGroup;
   final String description;
-  final String moreDescription;
-  final double unitPrice;
+  final String? detailedDescription;
+  final double salesRate;
   final double costPrice;
+  final double purchaseRate;
+  final double wholesalePrice;
+  final double mrp;
+  final double profitPercentage;
+  final double minimumSaleRate;
+  final String addinPartNumber1;
+  final String addinPartNumber2;
+  final String image;
+  final String otherLanguage;
   final double quantityOnHand;
   final UnitOfMeasure unitOfMeasure;
   final double lowStockThreshold;
@@ -46,18 +66,28 @@ class Product extends Equatable {
   final List<ProductMetadata> metadata;
 
   bool get isLowStock => quantityOnHand <= lowStockThreshold;
-  double get totalValue => unitPrice * quantityOnHand;
+  double get totalValue => salesRate * quantityOnHand;
 
   Product copyWith({
     int? id,
-    String? sku,
-    String? name,
+    String? itemCode,
+    String? barcode,
+    String? itemName,
     String? brand,
-    String? category,
-    String? moreDescription,
+    String? productGroup,
+    String? detailedDescription,
     String? description,
-    double? unitPrice,
+    double? salesRate,
     double? costPrice,
+    double? purchaseRate,
+    double? wholesalePrice,
+    double? mrp,
+    double? profitPercentage,
+    double? minimumSaleRate,
+    String? addinPartNumber1,
+    String? addinPartNumber2,
+    String? image,
+    String? otherLanguage,
     double? quantityOnHand,
     UnitOfMeasure? unitOfMeasure,
     double? lowStockThreshold,
@@ -70,14 +100,24 @@ class Product extends Equatable {
   }) {
     return Product(
       id: id ?? this.id,
-      sku: sku ?? this.sku,
-      name: name ?? this.name,
+      itemCode: itemCode ?? this.itemCode,
+      barcode: barcode ?? this.barcode,
+      itemName: itemName ?? this.itemName,
       brand: brand ?? this.brand,
-      category: category ?? this.category,
+      productGroup: productGroup ?? this.productGroup,
       description: description ?? this.description,
-      moreDescription: moreDescription ?? this.moreDescription,
-      unitPrice: unitPrice ?? this.unitPrice,
+      detailedDescription: detailedDescription ?? this.detailedDescription,
+      salesRate: salesRate ?? this.salesRate,
       costPrice: costPrice ?? this.costPrice,
+      purchaseRate: purchaseRate ?? this.purchaseRate,
+      wholesalePrice: wholesalePrice ?? this.wholesalePrice,
+      mrp: mrp ?? this.mrp,
+      profitPercentage: profitPercentage ?? this.profitPercentage,
+      minimumSaleRate: minimumSaleRate ?? this.minimumSaleRate,
+      addinPartNumber1: addinPartNumber1 ?? this.addinPartNumber1,
+      addinPartNumber2: addinPartNumber2 ?? this.addinPartNumber2,
+      image: image ?? this.image,
+      otherLanguage: otherLanguage ?? this.otherLanguage,
       quantityOnHand: quantityOnHand ?? this.quantityOnHand,
       unitOfMeasure: unitOfMeasure ?? this.unitOfMeasure,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
@@ -93,14 +133,24 @@ class Product extends Equatable {
   @override
   List<Object?> get props => [
     id,
-    sku,
-    name,
+    itemCode,
+    barcode,
+    itemName,
     brand,
-    category,
-    moreDescription,
+    productGroup,
+    detailedDescription,
     description,
-    unitPrice,
+    salesRate,
     costPrice,
+    purchaseRate,
+    wholesalePrice,
+    mrp,
+    profitPercentage,
+    minimumSaleRate,
+    addinPartNumber1,
+    addinPartNumber2,
+    image,
+    otherLanguage,
     quantityOnHand,
     unitOfMeasure,
     lowStockThreshold,

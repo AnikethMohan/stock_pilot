@@ -26,7 +26,7 @@ class ProductListPage extends StatefulWidget {
 class _ProductListPageState extends State<ProductListPage> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
-  String? _selectedCategory;
+  String? _selectedProductGroup;
   bool _lowStockOnly = false;
 
   @override
@@ -55,7 +55,7 @@ class _ProductListPageState extends State<ProductListPage> {
         searchQuery: _searchController.text.isEmpty
             ? null
             : _searchController.text,
-        category: _selectedCategory,
+        productGroup: _selectedProductGroup,
         lowStockOnly: _lowStockOnly ? true : null,
       ),
     );
@@ -149,7 +149,9 @@ class _ProductListPageState extends State<ProductListPage> {
   }
 
   Widget _buildFilterBar(BuildContext context, InventoryState state) {
-    final categories = state is InventoryLoaded ? state.categories : <String>[];
+    final productGroups = state is InventoryLoaded
+        ? state.productGroups
+        : <String>[];
 
     return Row(
       children: [
@@ -158,8 +160,7 @@ class _ProductListPageState extends State<ProductListPage> {
           child: TextField(
             controller: _searchController,
             decoration: const InputDecoration(
-              hintText:
-                  'Search by name, SKU, brand, description, more_description',
+              hintText: 'Search by name, code, brand, description, details',
               prefixIcon: Icon(Icons.search),
               isDense: true,
             ),
@@ -167,23 +168,23 @@ class _ProductListPageState extends State<ProductListPage> {
           ),
         ),
         const SizedBox(width: 12),
-        if (categories.isNotEmpty) ...[
+        if (productGroups.isNotEmpty) ...[
           SizedBox(
             width: 160,
             child: DropdownButtonFormField<String>(
-              initialValue: _selectedCategory,
+              initialValue: _selectedProductGroup,
               decoration: const InputDecoration(
-                hintText: 'Category',
+                hintText: 'Product Group',
                 isDense: true,
               ),
               items: [
                 const DropdownMenuItem(value: null, child: Text('All')),
-                ...categories.map(
+                ...productGroups.map(
                   (c) => DropdownMenuItem(value: c, child: Text(c)),
                 ),
               ],
               onChanged: (v) {
-                setState(() => _selectedCategory = v);
+                setState(() => _selectedProductGroup = v);
                 _applyFilters();
               },
             ),
@@ -296,11 +297,11 @@ class _ProductListPageState extends State<ProductListPage> {
             child: DataTable(
               dataRowMaxHeight: 70,
               columns: const [
-                DataColumn(label: Text('SKU')),
+                DataColumn(label: Text('Item Code')),
                 DataColumn(label: Text('Name')),
                 DataColumn(label: Text('Description')),
                 DataColumn(label: Text('Qty'), numeric: true),
-                DataColumn(label: Text('Unit Price'), numeric: true),
+                DataColumn(label: Text('Sales Rate'), numeric: true),
                 DataColumn(label: Text('Value'), numeric: true),
                 DataColumn(label: Text('Status')),
                 DataColumn(label: Text('Actions')),
@@ -308,12 +309,12 @@ class _ProductListPageState extends State<ProductListPage> {
               rows: state.products.map((p) {
                 return DataRow(
                   cells: [
-                    DataCell(Text(p.sku)),
+                    DataCell(Text(p.itemCode)),
                     DataCell(
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 200),
                         child: Text(
-                          p.name,
+                          p.itemName,
                           overflow: TextOverflow.ellipsis,
                           maxLines: 2,
                         ),
@@ -333,7 +334,7 @@ class _ProductListPageState extends State<ProductListPage> {
                       ),
                     ),
                     DataCell(Text(p.quantityOnHand.toStringAsFixed(1))),
-                    DataCell(Text('$sym${p.unitPrice.toStringAsFixed(2)}')),
+                    DataCell(Text('$sym${p.salesRate.toStringAsFixed(2)}')),
                     DataCell(Text('$sym${p.totalValue.toStringAsFixed(2)}')),
                     DataCell(
                       Chip(
@@ -359,7 +360,7 @@ class _ProductListPageState extends State<ProductListPage> {
                             ),
                             tooltip: 'Adjust Stock',
                             onPressed: () =>
-                                _showStockDialog(context, p.id!, p.sku),
+                                _showStockDialog(context, p.id!, p.itemCode),
                           ),
                           IconButton(
                             icon: const Icon(Icons.edit_outlined, size: 20),
@@ -374,7 +375,7 @@ class _ProductListPageState extends State<ProductListPage> {
                             ),
                             tooltip: 'Delete',
                             onPressed: () =>
-                                _confirmDelete(context, p.id!, p.name),
+                                _confirmDelete(context, p.id!, p.itemName),
                           ),
                         ],
                       ),
@@ -438,10 +439,10 @@ class _ProductListPageState extends State<ProductListPage> {
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             title: Text(
-              p.name,
+              p.itemName,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            subtitle: Text('${p.sku} • ${p.description}'),
+            subtitle: Text('${p.itemCode} • ${p.description}'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -457,7 +458,7 @@ class _ProductListPageState extends State<ProductListPage> {
                       ),
                     ),
                     Text(
-                      '$sym${p.unitPrice.toStringAsFixed(2)}',
+                      '$sym${p.salesRate.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -466,11 +467,11 @@ class _ProductListPageState extends State<ProductListPage> {
                   onSelected: (v) {
                     switch (v) {
                       case 'adjust':
-                        _showStockDialog(context, p.id!, p.sku);
+                        _showStockDialog(context, p.id!, p.itemCode);
                       case 'edit':
                         _openForm(context, product: p);
                       case 'delete':
-                        _confirmDelete(context, p.id!, p.name);
+                        _confirmDelete(context, p.id!, p.itemName);
                     }
                   },
                   itemBuilder: (_) => const [
@@ -498,12 +499,12 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  void _showStockDialog(BuildContext context, int productId, String sku) {
+  void _showStockDialog(BuildContext context, int productId, String itemCode) {
     showDialog(
       context: context,
       builder: (_) => BlocProvider.value(
         value: context.read<InventoryBloc>(),
-        child: StockAdjustDialog(productId: productId, sku: sku),
+        child: StockAdjustDialog(productId: productId, itemCode: itemCode),
       ),
     );
   }

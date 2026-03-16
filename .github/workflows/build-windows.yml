@@ -3,7 +3,8 @@ name: Build Windows Desktop
 on:
   push:
     branches:
-      - '**' # Triggers on push to any branch
+      - main
+      - release
     tags:
       - 'v*'
   workflow_dispatch:
@@ -21,7 +22,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
+          cache: true # Optional improvement: uses the built-in cache feature
 
       - name: Enable Windows desktop support
         run: flutter config --enable-windows-desktop
@@ -32,20 +33,21 @@ jobs:
       - name: Build Windows App
         run: flutter build windows --release
 
-      - name: Create MSIX Installer
-        run: flutter pub run msix:create --display-name "Stock Pilot" --publisher-display-name "Your Name" --publisher "CN=YourName" --install-certificate false --output-path build\windows\x64\runner\Release\ --output-name "stock-pilot-installer"
+      - name: Zip Release Build
+        run: |
+          powershell Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath windows-build.zip
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
-          path: build\windows\x64\runner\Release\stock-pilot-installer.msix
+          name: windows-build
+          path: windows-build.zip
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build\windows\x64\runner\Release\stock-pilot-installer.msix
+          files: windows-build.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -133,7 +133,7 @@ class DashboardPage extends StatelessWidget {
                         ),
                       ),
                       title: Text(
-                        txn.sku,
+                        txn.itemCode,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(

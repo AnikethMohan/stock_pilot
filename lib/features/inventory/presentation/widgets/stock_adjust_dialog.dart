@@ -11,11 +11,11 @@ class StockAdjustDialog extends StatefulWidget {
   const StockAdjustDialog({
     super.key,
     required this.productId,
-    required this.sku,
+    required this.itemCode,
   });
 
   final int productId;
-  final String sku;
+  final String itemCode;
 
   @override
   State<StockAdjustDialog> createState() => _StockAdjustDialogState();
@@ -37,7 +37,7 @@ class _StockAdjustDialogState extends State<StockAdjustDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Adjust Stock — ${widget.sku}'),
+      title: Text('Adjust Stock — ${widget.itemCode}'),
       content: SizedBox(
         width: 400,
         child: Column(

@@ -26,6 +26,7 @@ dependencies:
   file_picker: ^10.3.10
   pdf: ^3.11.2
   printing: ^5.13.4
+  flutter_inappwebview: ^6.1.5
 
   # Scanning
 
@@ -33,6 +34,7 @@ dependencies:
   # Utilities
   intl: ^0.20.2
   cupertino_icons: ^1.0.8
+  http: ^1.2.1
 
 dev_dependencies:
   flutter_test:
@@ -47,3 +49,9 @@ flutter:
   assets:
     - assets/fonts/NotoSans-Regular.ttf
     - assets/fonts/NotoSans-Bold.ttf
+
+msix_config:
+  display_name: Stock Pilot
+  publisher_display_name: Aniketh mohan
+  publisher: CN=Aniketh mohan
+  capabilities: fileSystemWrite, picturesLibrary

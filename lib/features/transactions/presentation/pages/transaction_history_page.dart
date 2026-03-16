@@ -93,7 +93,7 @@ class TransactionHistoryPage extends StatelessWidget {
             title: Row(
               children: [
                 Text(
-                  txn.sku,
+                  txn.itemCode,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 8),

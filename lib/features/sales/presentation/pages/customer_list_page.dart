@@ -17,6 +17,7 @@ class CustomerListPage extends StatefulWidget {
 class _CustomerListPageState extends State<CustomerListPage> {
   List<Customer> _customers = [];
   bool _isLoading = true;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -24,11 +25,11 @@ class _CustomerListPageState extends State<CustomerListPage> {
     _loadCustomers();
   }
 
-  Future<void> _loadCustomers() async {
+  Future<void> _loadCustomers({String? search}) async {
     setState(() => _isLoading = true);
     final repo = context.read<SalesRepository>();
     try {
-      final customers = await repo.getCustomers();
+      final customers = await repo.getCustomers(searchQuery: search);
       if (mounted) setState(() => _customers = customers);
     } catch (e) {
       if (mounted) {
@@ -39,6 +40,10 @@ class _CustomerListPageState extends State<CustomerListPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _applyFilters() {
+    _loadCustomers(search: _searchController.text);
   }
 
   Future<void> _showAddCustomerDialog() async {
@@ -116,34 +121,63 @@ class _CustomerListPageState extends State<CustomerListPage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _customers.isEmpty
-          ? const Center(child: Text('No customers found.'))
-          : ListView.separated(
-              itemCount: _customers.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final c = _customers[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.secondary,
-                    child: Text(c.name[0].toUpperCase()),
-                  ),
-                  title: Text(c.name),
-                  subtitle: Text(
-                    [c.phone, c.email].where((s) => s.isNotEmpty).join(' • '),
-                  ),
-                  onTap: () {
-                    if (widget.isSelectionMode) {
-                      Navigator.pop(context, c);
-                    } else {
-                      // TODO: Edit customer
-                    }
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search customers',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) => _applyFilters(),
+            ),
+          ),
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (_customers.isEmpty) {
+                  return const Center(child: Text('No customers found.'));
+                }
+                return ListView.separated(
+                  itemCount: _customers.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final c = _customers[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.secondary,
+                        child: Text(c.name[0].toUpperCase()),
+                      ),
+                      title: Text(c.name),
+                      subtitle: Text(
+                        [
+                          c.phone,
+                          c.email,
+                        ].where((s) => s.isNotEmpty).join(' • '),
+                      ),
+                      onTap: () {
+                        if (widget.isSelectionMode) {
+                          Navigator.pop(context, c);
+                        } else {
+                          // TODO: Edit customer
+                        }
+                      },
+                    );
                   },
                 );
               },
             ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddCustomerDialog,
         child: const Icon(Icons.person_add),

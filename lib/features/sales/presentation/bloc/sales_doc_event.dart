@@ -55,66 +55,66 @@ class AddDocItem extends SalesDocEvent {
   List<Object?> get props => [product, quantity];
 }
 
-/// Remove a line item by sku.
+/// Remove a line item by itemCode.
 class RemoveDocItem extends SalesDocEvent {
-  const RemoveDocItem(this.sku);
-  final String sku;
+  const RemoveDocItem({required this.itemCode});
+  final String itemCode;
 
   @override
-  List<Object?> get props => [sku];
+  List<Object?> get props => [itemCode];
 }
 
 /// Update quantity of an existing line item.
 class UpdateItemQuantity extends SalesDocEvent {
-  const UpdateItemQuantity({required this.sku, required this.quantity});
-  final String sku;
+  const UpdateItemQuantity({required this.itemCode, required this.quantity});
+  final String itemCode;
   final double quantity;
 
   @override
-  List<Object?> get props => [sku, quantity];
+  List<Object?> get props => [itemCode, quantity];
 }
 
 /// Update the unit price of a line item.
 class UpdateItemPrice extends SalesDocEvent {
-  const UpdateItemPrice({required this.sku, required this.price});
-  final String sku;
+  const UpdateItemPrice({required this.itemCode, required this.price});
+  final String itemCode;
   final double price;
 
   @override
-  List<Object?> get props => [sku, price];
+  List<Object?> get props => [itemCode, price];
 }
 
 /// Update the discount percent of a line item.
 class UpdateItemDiscount extends SalesDocEvent {
-  const UpdateItemDiscount({required this.sku, required this.discountPercent});
-  final String sku;
+  const UpdateItemDiscount({required this.itemCode, required this.discountPercent});
+  final String itemCode;
   final double discountPercent;
 
   @override
-  List<Object?> get props => [sku, discountPercent];
+  List<Object?> get props => [itemCode, discountPercent];
 }
 
 /// Update the discount amount of a line item.
 class UpdateItemDiscountAmount extends SalesDocEvent {
   const UpdateItemDiscountAmount({
-    required this.sku,
+    required this.itemCode,
     required this.discountAmount,
   });
-  final String sku;
+  final String itemCode;
   final double discountAmount;
 
   @override
-  List<Object?> get props => [sku, discountAmount];
+  List<Object?> get props => [itemCode, discountAmount];
 }
 
 /// Update the tax percent of a line item.
 class UpdateItemTax extends SalesDocEvent {
-  const UpdateItemTax({required this.sku, required this.taxPercent});
-  final String sku;
+  const UpdateItemTax({required this.itemCode, required this.taxPercent});
+  final String itemCode;
   final double taxPercent;
 
   @override
-  List<Object?> get props => [sku, taxPercent];
+  List<Object?> get props => [itemCode, taxPercent];
 }
 
 /// Set the customer for the active document.

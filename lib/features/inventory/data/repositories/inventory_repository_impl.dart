@@ -18,13 +18,13 @@ class InventoryRepositoryImpl implements InventoryRepository {
   @override
   Future<List<Product>> getProducts({
     String? searchQuery,
-    String? category,
+    String? productGroup,
     bool? lowStockOnly,
     int limit = 50,
     int offset = 0,
   }) => _ds.getProducts(
     searchQuery: searchQuery,
-    category: category,
+    productGroup: productGroup,
     lowStockOnly: lowStockOnly,
     limit: limit,
     offset: offset,
@@ -33,11 +33,11 @@ class InventoryRepositoryImpl implements InventoryRepository {
   @override
   Future<int> getProductCount({
     String? searchQuery,
-    String? category,
+    String? productGroup,
     bool? lowStockOnly,
   }) => _ds.getProductCount(
     searchQuery: searchQuery,
-    category: category,
+    productGroup: productGroup,
     lowStockOnly: lowStockOnly,
   );
 
@@ -45,7 +45,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
   Future<Product?> getProductById(int id) => _ds.getProductById(id);
 
   @override
-  Future<Product?> getProductBySku(String sku) => _ds.getProductBySku(sku);
+  Future<Product?> getProductByItemCode(String itemCode) => _ds.getProductByItemCode(itemCode);
 
   @override
   Future<int> addProduct(Product product) => _ds.insertProduct(product);
@@ -82,7 +82,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
     await _ds.insertTransaction(
       StockTransaction(
         productId: productId,
-        sku: product.sku,
+        itemCode: product.itemCode,
         timestamp: DateTime.now(),
         changeAmount: changeAmount,
         reason: reason,
@@ -95,7 +95,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
   }
 
   @override
-  Future<List<String>> getCategories() => _ds.getCategories();
+  Future<List<String>> getProductGroups() => _ds.getProductGroups();
 
   @override
   Future<int> upsertProductsFromCsv(

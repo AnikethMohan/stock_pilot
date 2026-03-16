@@ -8,7 +8,7 @@ class StockTransaction extends Equatable {
   const StockTransaction({
     this.id,
     required this.productId,
-    required this.sku,
+    required this.itemCode,
     required this.timestamp,
     required this.changeAmount,
     required this.reason,
@@ -18,7 +18,7 @@ class StockTransaction extends Equatable {
 
   final int? id;
   final int productId;
-  final String sku;
+  final String itemCode;
   final DateTime timestamp;
   final double changeAmount;
   final TransactionReason reason;
@@ -29,7 +29,7 @@ class StockTransaction extends Equatable {
   List<Object?> get props => [
     id,
     productId,
-    sku,
+    itemCode,
     timestamp,
     changeAmount,
     reason,

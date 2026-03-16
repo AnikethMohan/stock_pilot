@@ -39,14 +39,14 @@ class CsvImporting extends InventoryState {
 class InventoryLoaded extends InventoryState {
   const InventoryLoaded({
     required this.products,
-    this.categories = const [],
+    this.productGroups = const [],
     this.csvExportData,
     this.csvImportCount,
     this.totalProductCount = 0,
     this.hasMore = false,
   });
   final List<Product> products;
-  final List<String> categories;
+  final List<String> productGroups;
   final String? csvExportData;
   final int? csvImportCount;
   final int totalProductCount;
@@ -55,7 +55,7 @@ class InventoryLoaded extends InventoryState {
   @override
   List<Object?> get props => [
     products,
-    categories,
+    productGroups,
     csvExportData,
     csvImportCount,
     totalProductCount,

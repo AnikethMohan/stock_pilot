@@ -304,7 +304,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
         }
       },
       displayStringForOption: (Product option) =>
-          '${option.name} (${option.sku})',
+          '${option.itemName} (${option.itemCode})',
       onSelected: (Product selection) {
         context.read<SalesDocBloc>().add(AddDocItem(product: selection));
         _autoCompleteController?.clear();
@@ -315,7 +315,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
           controller: controller,
           focusNode: focusNode,
           decoration: const InputDecoration(
-            labelText: 'Search Product by Name or SKU',
+            labelText: 'Search Product by Name or Item Code',
             prefixIcon: Icon(Icons.search),
           ),
           onSubmitted: (_) => onFieldSubmitted(),
@@ -349,7 +349,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
               const DataColumn(label: Text('Item')),
               const DataColumn(label: Text('Qty')),
               if (!isDeliveryNote) ...[
-                const DataColumn(label: Text('Price')),
+                const DataColumn(label: Text('Sales Rate')),
                 const DataColumn(label: Text('Disc %')),
                 const DataColumn(label: Text('Disc Amt')),
                 const DataColumn(label: Text('Tax %')),
@@ -379,7 +379,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             onTap: () {
                               context.read<SalesDocBloc>().add(
                                 UpdateItemQuantity(
-                                  sku: item.sku,
+                                  itemCode: item.itemCode,
                                   quantity: item.quantity - 1,
                                 ),
                               );
@@ -413,7 +413,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                                 if (qty != null) {
                                   context.read<SalesDocBloc>().add(
                                     UpdateItemQuantity(
-                                      sku: item.sku,
+                                      itemCode: item.itemCode,
                                       quantity: qty,
                                     ),
                                   );
@@ -426,7 +426,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             onTap: () {
                               context.read<SalesDocBloc>().add(
                                 UpdateItemQuantity(
-                                  sku: item.sku,
+                                  itemCode: item.itemCode,
                                   quantity: item.quantity + 1,
                                 ),
                               );
@@ -446,7 +446,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                         width: 80,
                         child: TextField(
                           controller: TextEditingController(
-                            text: item.unitPrice.toStringAsFixed(2),
+                            text: item.salesRate.toStringAsFixed(2),
                           ),
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
@@ -461,7 +461,10 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             final price = double.tryParse(val);
                             if (price != null) {
                               context.read<SalesDocBloc>().add(
-                                UpdateItemPrice(sku: item.sku, price: price),
+                                UpdateItemPrice(
+                                  itemCode: item.itemCode,
+                                  price: price,
+                                ),
                               );
                             }
                           },
@@ -491,7 +494,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             final disc = double.tryParse(val) ?? 0.0;
                             context.read<SalesDocBloc>().add(
                               UpdateItemDiscount(
-                                sku: item.sku,
+                                itemCode: item.itemCode,
                                 discountPercent: disc,
                               ),
                             );
@@ -522,7 +525,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             final discAmt = double.tryParse(val) ?? 0.0;
                             context.read<SalesDocBloc>().add(
                               UpdateItemDiscountAmount(
-                                sku: item.sku,
+                                itemCode: item.itemCode,
                                 discountAmount: discAmt,
                               ),
                             );
@@ -552,7 +555,10 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                           onSubmitted: (val) {
                             final tax = double.tryParse(val) ?? 0.0;
                             context.read<SalesDocBloc>().add(
-                              UpdateItemTax(sku: item.sku, taxPercent: tax),
+                              UpdateItemTax(
+                                itemCode: item.itemCode,
+                                taxPercent: tax,
+                              ),
                             );
                           },
                         ),
@@ -565,7 +571,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                       icon: const Icon(Icons.delete, color: AppTheme.error),
                       onPressed: () {
                         context.read<SalesDocBloc>().add(
-                          RemoveDocItem(item.sku),
+                          RemoveDocItem(itemCode: item.itemCode),
                         );
                       },
                     ),
@@ -616,7 +622,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                         size: 20,
                       ),
                       onPressed: () => context.read<SalesDocBloc>().add(
-                        RemoveDocItem(item.sku),
+                        RemoveDocItem(itemCode: item.itemCode),
                       ),
                     ),
                   ],
@@ -635,7 +641,10 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                           final qty = double.tryParse(val);
                           if (qty != null) {
                             context.read<SalesDocBloc>().add(
-                              UpdateItemQuantity(sku: item.sku, quantity: qty),
+                              UpdateItemQuantity(
+                                itemCode: item.itemCode,
+                                quantity: qty,
+                              ),
                             );
                           }
                         },
@@ -647,12 +656,15 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                       Expanded(
                         child: _buildMobileField(
                           'Price',
-                          item.unitPrice.toStringAsFixed(2),
+                          item.salesRate.toStringAsFixed(2),
                           (val) {
                             final price = double.tryParse(val);
                             if (price != null) {
                               context.read<SalesDocBloc>().add(
-                                UpdateItemPrice(sku: item.sku, price: price),
+                                UpdateItemPrice(
+                                  itemCode: item.itemCode,
+                                  price: price,
+                                ),
                               );
                             }
                           },
@@ -670,7 +682,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             final disc = double.tryParse(val) ?? 0.0;
                             context.read<SalesDocBloc>().add(
                               UpdateItemDiscount(
-                                sku: item.sku,
+                                itemCode: item.itemCode,
                                 discountPercent: disc,
                               ),
                             );
@@ -689,7 +701,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             final discAmt = double.tryParse(val) ?? 0.0;
                             context.read<SalesDocBloc>().add(
                               UpdateItemDiscountAmount(
-                                sku: item.sku,
+                                itemCode: item.itemCode,
                                 discountAmount: discAmt,
                               ),
                             );
@@ -707,7 +719,10 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                           (val) {
                             final tax = double.tryParse(val) ?? 0.0;
                             context.read<SalesDocBloc>().add(
-                              UpdateItemTax(sku: item.sku, taxPercent: tax),
+                              UpdateItemTax(
+                                itemCode: item.itemCode,
+                                taxPercent: tax,
+                              ),
                             );
                           },
                         ),

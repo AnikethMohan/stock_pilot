@@ -13,13 +13,13 @@ sealed class InventoryEvent extends Equatable {
 }
 
 class LoadProducts extends InventoryEvent {
-  const LoadProducts({this.searchQuery, this.category, this.lowStockOnly});
+  const LoadProducts({this.searchQuery, this.productGroup, this.lowStockOnly});
   final String? searchQuery;
-  final String? category;
+  final String? productGroup;
   final bool? lowStockOnly;
 
   @override
-  List<Object?> get props => [searchQuery, category, lowStockOnly];
+  List<Object?> get props => [searchQuery, productGroup, lowStockOnly];
 }
 
 class AddProduct extends InventoryEvent {

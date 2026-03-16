@@ -19,7 +19,7 @@ class InventoryLocalDataSource {
   /// Get products with optional filters, pagination via [limit] and [offset].
   Future<List<Product>> getProducts({
     String? searchQuery,
-    String? category,
+    String? productGroup,
     bool? lowStockOnly,
     int limit = 50,
     int offset = 0,
@@ -30,14 +30,14 @@ class InventoryLocalDataSource {
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       whereClauses.add(
-        '(name LIKE ? OR sku LIKE ? OR brand LIKE ? OR description LIKE ? OR more_description LIKE ?)',
+        '(item_name LIKE ? OR item_code LIKE ? OR brand LIKE ? OR description LIKE ? OR detailed_description LIKE ?)',
       );
       final q = '%$searchQuery%';
       whereArgs.addAll([q, q, q, q, q]);
     }
-    if (category != null && category.isNotEmpty) {
-      whereClauses.add('category = ?');
-      whereArgs.add(category);
+    if (productGroup != null && productGroup.isNotEmpty) {
+      whereClauses.add('product_group = ?');
+      whereArgs.add(productGroup);
     }
     if (lowStockOnly == true) {
       whereClauses.add('quantity_on_hand <= low_stock_threshold');
@@ -48,7 +48,7 @@ class InventoryLocalDataSource {
       'products',
       where: where,
       whereArgs: whereArgs.isEmpty ? null : whereArgs,
-      orderBy: 'name ASC',
+      orderBy: 'item_name ASC',
       limit: limit,
       offset: offset,
     );
@@ -70,7 +70,7 @@ class InventoryLocalDataSource {
   /// Get total count of products matching the given filters (for pagination).
   Future<int> getProductCount({
     String? searchQuery,
-    String? category,
+    String? productGroup,
     bool? lowStockOnly,
   }) async {
     final db = await _dbHelper.database;
@@ -78,13 +78,13 @@ class InventoryLocalDataSource {
     final whereArgs = <dynamic>[];
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      whereClauses.add('(name LIKE ? OR sku LIKE ? OR brand LIKE ?)');
+      whereClauses.add('(item_name LIKE ? OR item_code LIKE ? OR brand LIKE ?)');
       final q = '%$searchQuery%';
       whereArgs.addAll([q, q, q]);
     }
-    if (category != null && category.isNotEmpty) {
-      whereClauses.add('category = ?');
-      whereArgs.add(category);
+    if (productGroup != null && productGroup.isNotEmpty) {
+      whereClauses.add('product_group = ?');
+      whereArgs.add(productGroup);
     }
     if (lowStockOnly == true) {
       whereClauses.add('quantity_on_hand <= low_stock_threshold');
@@ -108,9 +108,9 @@ class InventoryLocalDataSource {
     return ProductModel.fromMap(rows.first, metadata: meta);
   }
 
-  Future<Product?> getProductBySku(String sku) async {
+  Future<Product?> getProductByItemCode(String itemCode) async {
     final db = await _dbHelper.database;
-    final rows = await db.query('products', where: 'sku = ?', whereArgs: [sku]);
+    final rows = await db.query('products', where: 'item_code = ?', whereArgs: [itemCode]);
     if (rows.isEmpty) return null;
     final id = rows.first['id'] as int;
     final meta = await _getMetadataForProduct(db, id);
@@ -163,12 +163,12 @@ class InventoryLocalDataSource {
     );
   }
 
-  Future<List<String>> getCategories() async {
+  Future<List<String>> getProductGroups() async {
     final db = await _dbHelper.database;
     final rows = await db.rawQuery(
-      "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category",
+      "SELECT DISTINCT product_group FROM products WHERE product_group IS NOT NULL AND product_group != '' ORDER BY product_group",
     );
-    return rows.map((r) => r['category'] as String).toList();
+    return rows.map((r) => r['product_group'] as String).toList();
   }
 
   /// Chunked upsert — splits products into batches of [chunkSize] and commits
@@ -193,30 +193,51 @@ class InventoryLocalDataSource {
       for (final p in chunk) {
         batch.rawInsert(
           '''
-          INSERT INTO products (sku, name, brand, category, description,more_description,
-                                unit_price, quantity_on_hand, unit_of_measure,
+          INSERT INTO products (item_code, item_name, brand, product_group, description, detailed_description,
+                                sales_rate, cost_price, purchase_rate, wholesale_price, mrp,
+                                profit_percentage, minimum_sale_rate, addin_part_number_1, addin_part_number_2,
+                                image, other_language, quantity_on_hand, unit_of_measure,
                                 low_stock_threshold, location_aisle, location_shelf,
                                 location_bin, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
-          ON CONFLICT(sku) DO UPDATE SET
-            name             = COALESCE(excluded.name, products.name),
-            brand            = COALESCE(excluded.brand, products.brand),
-            category         = COALESCE(excluded.category, products.category),
-            more_description = COALESCE(excluded.more_description, products.more_description),
-            description      = COALESCE(excluded.description, products.description),
-            unit_price       = COALESCE(excluded.unit_price, products.unit_price),
-            quantity_on_hand = products.quantity_on_hand + excluded.quantity_on_hand,
-            unit_of_measure  = COALESCE(excluded.unit_of_measure, products.unit_of_measure),
-            updated_at       = ?
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(item_code) DO UPDATE SET
+            item_name            = COALESCE(excluded.item_name, products.item_name),
+            brand                = COALESCE(excluded.brand, products.brand),
+            product_group        = COALESCE(excluded.product_group, products.product_group),
+            detailed_description = COALESCE(excluded.detailed_description, products.detailed_description),
+            description          = COALESCE(excluded.description, products.description),
+            sales_rate           = COALESCE(excluded.sales_rate, products.sales_rate),
+            purchase_rate        = COALESCE(excluded.purchase_rate, products.purchase_rate),
+            wholesale_price      = COALESCE(excluded.wholesale_price, products.wholesale_price),
+            mrp                  = COALESCE(excluded.mrp, products.mrp),
+            profit_percentage    = COALESCE(excluded.profit_percentage, products.profit_percentage),
+            minimum_sale_rate    = COALESCE(excluded.minimum_sale_rate, products.minimum_sale_rate),
+            addin_part_number_1  = COALESCE(excluded.addin_part_number_1, products.addin_part_number_1),
+            addin_part_number_2  = COALESCE(excluded.addin_part_number_2, products.addin_part_number_2),
+            image                = COALESCE(excluded.image, products.image),
+            other_language       = COALESCE(excluded.other_language, products.other_language),
+            quantity_on_hand     = products.quantity_on_hand + excluded.quantity_on_hand,
+            unit_of_measure      = COALESCE(excluded.unit_of_measure, products.unit_of_measure),
+            updated_at           = ?
         ''',
           [
-            p.sku,
-            p.name,
+            p.itemCode,
+            p.itemName,
             p.brand,
-            p.category,
-            p.moreDescription,
+            p.productGroup,
             p.description,
-            p.unitPrice,
+            p.detailedDescription,
+            p.salesRate,
+            p.costPrice,
+            p.purchaseRate,
+            p.wholesalePrice,
+            p.mrp,
+            p.profitPercentage,
+            p.minimumSaleRate,
+            p.addinPartNumber1,
+            p.addinPartNumber2,
+            p.image,
+            p.otherLanguage,
             p.quantityOnHand,
             p.unitOfMeasure.label,
             p.lowStockThreshold,
@@ -236,21 +257,21 @@ class InventoryLocalDataSource {
           .where((p) => p.metadata.isNotEmpty)
           .toList();
       if (productsWithMeta.isNotEmpty) {
-        // Look up the product IDs by SKU for this chunk.
-        final skus = productsWithMeta.map((p) => p.sku).toList();
-        final placeholders = List.filled(skus.length, '?').join(',');
+        // Look up the product IDs by itemCode for this chunk.
+        final itemCodes = productsWithMeta.map((p) => p.itemCode).toList();
+        final placeholders = List.filled(itemCodes.length, '?').join(',');
         final idRows = await db.rawQuery(
-          'SELECT id, sku FROM products WHERE sku IN ($placeholders)',
-          skus,
+          'SELECT id, item_code FROM products WHERE item_code IN ($placeholders)',
+          itemCodes,
         );
-        final skuToId = <String, int>{};
+        final itemCodeToId = <String, int>{};
         for (final row in idRows) {
-          skuToId[row['sku'] as String] = row['id'] as int;
+          itemCodeToId[row['item_code'] as String] = row['id'] as int;
         }
 
         final metaBatch = db.batch();
         for (final p in productsWithMeta) {
-          final productId = skuToId[p.sku];
+          final productId = itemCodeToId[p.itemCode];
           if (productId == null) continue;
           for (final m in p.metadata) {
             metaBatch.rawInsert(
@@ -282,7 +303,7 @@ class InventoryLocalDataSource {
   Future<double> getTotalInventoryValue() async {
     final db = await _dbHelper.database;
     final result = await db.rawQuery(
-      'SELECT COALESCE(SUM(unit_price * quantity_on_hand), 0) as total FROM products',
+      'SELECT COALESCE(SUM(sales_rate * quantity_on_hand), 0) as total FROM products',
     );
     return (result.first['total'] as num).toDouble();
   }
@@ -290,7 +311,7 @@ class InventoryLocalDataSource {
   Future<double> getPotentialProfit() async {
     final db = await _dbHelper.database;
     final result = await db.rawQuery(
-      'SELECT COALESCE(SUM((unit_price - cost_price) * quantity_on_hand), 0) as profit FROM products',
+      'SELECT COALESCE(SUM((sales_rate - cost_price) * quantity_on_hand), 0) as profit FROM products',
     );
     return (result.first['profit'] as num).toDouble();
   }

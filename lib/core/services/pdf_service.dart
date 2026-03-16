@@ -221,7 +221,7 @@ class PdfService {
   ) {
     if (isDeliveryNote) {
       return pw.TableHelper.fromTextArray(
-        headers: ['Item', 'SKU', 'Qty'],
+        headers: ['Item', 'Item Code', 'Qty'],
         headerStyle: pw.TextStyle(
           fontWeight: pw.FontWeight.bold,
           color: PdfColors.white,
@@ -236,7 +236,7 @@ class PdfService {
         data: items.map((item) {
           return [
             item.productName,
-            item.sku,
+            item.itemCode,
             item.quantity % 1 == 0
                 ? item.quantity.toInt().toString()
                 : item.quantity.toString(),
@@ -246,7 +246,7 @@ class PdfService {
     }
 
     return pw.TableHelper.fromTextArray(
-      headers: ['Item', 'Price', 'Qty', 'Disc %', 'Disc Amt', 'Tax %', 'Total'],
+      headers: ['Item', 'Rate', 'Qty', 'Disc %', 'Disc Amt', 'Tax %', 'Total'],
       headerStyle: pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
@@ -265,7 +265,7 @@ class PdfService {
       data: items.map((item) {
         return [
           item.productName,
-          currencyFormat.format(item.unitPrice),
+          currencyFormat.format(item.salesRate),
           item.quantity % 1 == 0
               ? item.quantity.toInt().toString()
               : item.quantity.toString(),

@@ -11,7 +11,7 @@ class TransactionModel {
     return {
       if (txn.id != null) 'id': txn.id,
       'product_id': txn.productId,
-      'sku': txn.sku,
+      'item_code': txn.itemCode,
       'timestamp': txn.timestamp.toIso8601String(),
       'change_amount': txn.changeAmount,
       'reason': txn.reason.label,
@@ -24,7 +24,7 @@ class TransactionModel {
     return StockTransaction(
       id: map['id'] as int?,
       productId: map['product_id'] as int,
-      sku: map['sku'] as String,
+      itemCode: (map['item_code'] ?? map['sku']) as String,
       timestamp: DateTime.parse(map['timestamp'] as String),
       changeAmount: (map['change_amount'] as num).toDouble(),
       reason: TransactionReason.fromString(map['reason'] as String),

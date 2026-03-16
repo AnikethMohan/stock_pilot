@@ -19,8 +19,8 @@ void main() {
 
   final testProduct = Product(
     id: 1,
-    sku: 'TEST-001',
-    name: 'Widget A',
+    itemCode: 'TEST-001',
+    itemName: 'Widget A',
     quantityOnHand: 5.0,
   );
 

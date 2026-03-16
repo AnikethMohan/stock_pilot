@@ -26,7 +26,6 @@ class DatabaseHelper {
       path,
       version: AppDefaults.dbVersion,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
       onConfigure: _onConfigure,
     );
   }
@@ -36,27 +35,38 @@ class DatabaseHelper {
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
-  /// Create all tables on first launch.
+  /// Create all tables in their final state.
   Future<void> _onCreate(Database db, int version) async {
+    // ─── Products ──────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE products (
-        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-        sku                 TEXT    NOT NULL UNIQUE,
-        name                TEXT    NOT NULL,
-        brand               TEXT,
-        category            TEXT,
-        description         TEXT,
-        more_description    TEXT,
-        unit_price          REAL    NOT NULL DEFAULT 0.0,
-        cost_price          REAL    NOT NULL DEFAULT 0.0,
-        quantity_on_hand    REAL    NOT NULL DEFAULT 0.0,
-        unit_of_measure     TEXT    NOT NULL DEFAULT 'Pieces',
-        low_stock_threshold REAL    NOT NULL DEFAULT 10.0,
-        location_aisle      TEXT,
-        location_shelf      TEXT,
-        location_bin        TEXT,
-        created_at          TEXT    NOT NULL,
-        updated_at          TEXT    NOT NULL
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_code            TEXT    NOT NULL UNIQUE,
+        barcode              TEXT,
+        item_name            TEXT    NOT NULL,
+        brand                TEXT,
+        product_group        TEXT,
+        description          TEXT,
+        detailed_description TEXT,
+        sales_rate           REAL    NOT NULL DEFAULT 0.0,
+        cost_price           REAL    NOT NULL DEFAULT 0.0,
+        purchase_rate        REAL    NOT NULL DEFAULT 0.0,
+        wholesale_price      REAL    NOT NULL DEFAULT 0.0,
+        mrp                  REAL    NOT NULL DEFAULT 0.0,
+        profit_percentage    REAL    NOT NULL DEFAULT 0.0,
+        minimum_sale_rate    REAL    NOT NULL DEFAULT 0.0,
+        addin_part_number_1  TEXT,
+        addin_part_number_2  TEXT,
+        image                TEXT,
+        other_language       TEXT,
+        quantity_on_hand     REAL    NOT NULL DEFAULT 0.0,
+        unit_of_measure      TEXT    NOT NULL DEFAULT 'Pieces',
+        low_stock_threshold  REAL    NOT NULL DEFAULT 10.0,
+        location_aisle       TEXT,
+        location_shelf       TEXT,
+        location_bin         TEXT,
+        created_at           TEXT    NOT NULL,
+        updated_at           TEXT    NOT NULL
       )
     ''');
 
@@ -71,11 +81,12 @@ class DatabaseHelper {
       )
     ''');
 
+    // ─── Transactions ──────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE transactions (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id      INTEGER NOT NULL,
-        sku             TEXT    NOT NULL,
+        item_code       TEXT    NOT NULL,
         timestamp       TEXT    NOT NULL,
         change_amount   REAL    NOT NULL,
         reason          TEXT    NOT NULL,
@@ -85,56 +96,9 @@ class DatabaseHelper {
       )
     ''');
 
+    // ─── Stakeholders ──────────────────────────────────────────────
     await db.execute('''
-      CREATE TABLE settings (
-        key   TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      )
-    ''');
-
-    // ── V2 tables ──────────────────────────────────────────────────
-    await _createV2Tables(db);
-
-    // ── V3 tables ──────────────────────────────────────────────────
-    await _createV3Tables(db);
-
-    // ── V4 tables ──────────────────────────────────────────────────
-    await _createV4Tables(db);
-
-    // Seed default settings
-    await db.insert('settings', {
-      'key': SettingsKeys.allowNegativeStock,
-      'value': AppDefaults.defaultAllowNegativeStock.toString(),
-    });
-    await db.insert('settings', {
-      'key': SettingsKeys.defaultLowStockThreshold,
-      'value': AppDefaults.defaultLowStockThreshold.toString(),
-    });
-  }
-
-  /// Upgrade handler — additive-only, never drops tables.
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Add cost_price column to existing products table.
-      await db.execute(
-        'ALTER TABLE products ADD COLUMN cost_price REAL NOT NULL DEFAULT 0.0',
-      );
-      await _createV2Tables(db);
-    }
-    if (oldVersion < 3) {
-      await _createV3Tables(db);
-      await _migrateV2ToV3(db);
-    }
-    if (oldVersion < 4) {
-      await _createV4Tables(db);
-      await _migrateV3ToV4(db);
-    }
-  }
-
-  /// V2 schema: customers, invoices, invoice_items.
-  Future<void> _createV2Tables(Database db) async {
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS customers (
+      CREATE TABLE customers (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         name       TEXT    NOT NULL,
         phone      TEXT,
@@ -145,45 +109,24 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS invoices (
-        id             INTEGER PRIMARY KEY AUTOINCREMENT,
-        invoice_number TEXT    NOT NULL UNIQUE,
-        customer_id    INTEGER,
-        subtotal       REAL    NOT NULL DEFAULT 0.0,
-        tax_percent    REAL    NOT NULL DEFAULT 0.0,
-        tax_amount     REAL    NOT NULL DEFAULT 0.0,
-        grand_total    REAL    NOT NULL DEFAULT 0.0,
-        status         TEXT    NOT NULL DEFAULT 'draft',
-        notes          TEXT,
-        created_at     TEXT    NOT NULL,
-        FOREIGN KEY (customer_id) REFERENCES customers(id)
+      CREATE TABLE suppliers (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        phone      TEXT,
+        email      TEXT,
+        address    TEXT,
+        created_at TEXT    NOT NULL
       )
     ''');
 
+    // ─── Sales & Purchases ──────────────────────────────────────────
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS invoice_items (
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        invoice_id   INTEGER NOT NULL,
-        product_id   INTEGER NOT NULL,
-        sku          TEXT    NOT NULL,
-        product_name TEXT    NOT NULL,
-        unit_price   REAL    NOT NULL,
-        quantity     REAL    NOT NULL,
-        line_total   REAL    NOT NULL,
-        FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES products(id)
-      )
-    ''');
-  }
-
-  /// V3 schema: unified sales_documents and sales_document_items.
-  Future<void> _createV3Tables(Database db) async {
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS sales_documents (
+      CREATE TABLE sales_documents (
         id                INTEGER PRIMARY KEY AUTOINCREMENT,
         doc_type          TEXT    NOT NULL,
         doc_number        TEXT    NOT NULL UNIQUE,
         customer_id       INTEGER,
+        supplier_id       INTEGER,
         subtotal          REAL    NOT NULL DEFAULT 0.0,
         discount_percent  REAL    NOT NULL DEFAULT 0.0,
         discount_amount   REAL    NOT NULL DEFAULT 0.0,
@@ -197,18 +140,19 @@ class DatabaseHelper {
         notes             TEXT,
         created_at        TEXT    NOT NULL,
         FOREIGN KEY (customer_id) REFERENCES customers(id),
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
         FOREIGN KEY (source_doc_id) REFERENCES sales_documents(id)
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS sales_document_items (
+      CREATE TABLE sales_document_items (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id      INTEGER NOT NULL,
         product_id       INTEGER NOT NULL,
-        sku              TEXT    NOT NULL,
+        item_code        TEXT    NOT NULL,
         product_name     TEXT    NOT NULL,
-        unit_price       REAL    NOT NULL,
+        sales_rate       REAL    NOT NULL,
         quantity         REAL    NOT NULL,
         discount_percent REAL    NOT NULL DEFAULT 0.0,
         discount_amount  REAL    NOT NULL DEFAULT 0.0,
@@ -219,68 +163,23 @@ class DatabaseHelper {
         FOREIGN KEY (product_id)  REFERENCES products(id)
       )
     ''');
-  }
 
-  /// Migrate existing invoices from V2 tables into V3 sales_documents tables.
-  Future<void> _migrateV2ToV3(Database db) async {
-    final invoices = await db.query('invoices');
-    for (final inv in invoices) {
-      final oldId = inv['id'] as int;
-      final newId = await db.insert('sales_documents', {
-        'doc_type': 'invoice',
-        'doc_number': inv['invoice_number'],
-        'customer_id': inv['customer_id'],
-        'subtotal': inv['subtotal'],
-        'discount_percent': 0.0,
-        'discount_amount': 0.0,
-        'tax_amount': inv['tax_amount'],
-        'grand_total': inv['grand_total'],
-        'status': inv['status'],
-        'notes': inv['notes'],
-        'created_at': inv['created_at'],
-      });
-
-      final items = await db.query(
-        'invoice_items',
-        where: 'invoice_id = ?',
-        whereArgs: [oldId],
-      );
-      for (final item in items) {
-        await db.insert('sales_document_items', {
-          'document_id': newId,
-          'product_id': item['product_id'],
-          'sku': item['sku'],
-          'product_name': item['product_name'],
-          'unit_price': item['unit_price'],
-          'quantity': item['quantity'],
-          'discount_percent': 0.0,
-          'discount_amount': 0.0,
-          'tax_percent': 0.0,
-          'tax_amount': 0.0,
-          'line_total': item['line_total'],
-        });
-      }
-    }
-  }
-
-  /// V4 schema: suppliers, add supplier_id to sales_documents.
-  Future<void> _createV4Tables(Database db) async {
+    // ─── Settings ──────────────────────────────────────────────────
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS suppliers (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        name       TEXT    NOT NULL,
-        phone      TEXT,
-        email      TEXT,
-        address    TEXT,
-        created_at TEXT    NOT NULL
+      CREATE TABLE settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
       )
     ''');
-  }
 
-  /// Migrate existing V3 sales_documents to include supplier_id.
-  Future<void> _migrateV3ToV4(Database db) async {
-    await db.execute(
-      'ALTER TABLE sales_documents ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id)',
-    );
+    // Seed default settings
+    await db.insert('settings', {
+      'key': SettingsKeys.allowNegativeStock,
+      'value': AppDefaults.defaultAllowNegativeStock.toString(),
+    });
+    await db.insert('settings', {
+      'key': SettingsKeys.defaultLowStockThreshold,
+      'value': AppDefaults.defaultLowStockThreshold.toString(),
+    });
   }
 }

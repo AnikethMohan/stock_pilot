@@ -60,7 +60,7 @@ class SalesDocument extends Equatable {
   }) {
     final sub = items.fold<double>(
       0,
-      (sum, i) => sum + (i.unitPrice * i.quantity),
+      (sum, i) => sum + (i.salesRate * i.quantity),
     );
     final tax = items.fold<double>(0, (sum, i) => sum + i.taxAmount);
     final totalLineItems = items.fold<double>(0, (sum, i) => sum + i.lineTotal);
@@ -177,9 +177,9 @@ class SalesDocItem extends Equatable {
   const SalesDocItem({
     this.id,
     required this.productId,
-    required this.sku,
+    required this.itemCode,
     required this.productName,
-    required this.unitPrice,
+    required this.salesRate,
     this.quantity = 1,
     this.discountPercent = 0.0,
     this.discountAmount = 0.0,
@@ -190,9 +190,9 @@ class SalesDocItem extends Equatable {
 
   final int? id;
   final int productId;
-  final String sku;
+  final String itemCode;
   final String productName;
-  final double unitPrice;
+  final double salesRate;
   final double quantity;
   final double discountPercent;
   final double discountAmount;
@@ -204,23 +204,23 @@ class SalesDocItem extends Equatable {
   factory SalesDocItem.create({
     int? id,
     required int productId,
-    required String sku,
+    required String itemCode,
     required String productName,
-    required double unitPrice,
+    required double salesRate,
     double quantity = 1,
     double discountPercent = 0.0,
     double taxPercent = 0.0,
   }) {
-    final gross = unitPrice * quantity;
+    final gross = salesRate * quantity;
     final discAmt = gross * (discountPercent / 100);
     final afterDiscount = gross - discAmt;
     final taxAmt = afterDiscount * (taxPercent / 100);
     return SalesDocItem(
       id: id,
       productId: productId,
-      sku: sku,
+      itemCode: itemCode,
       productName: productName,
-      unitPrice: unitPrice,
+      salesRate: salesRate,
       quantity: quantity,
       discountPercent: discountPercent,
       discountAmount: discAmt,
@@ -232,16 +232,16 @@ class SalesDocItem extends Equatable {
 
   /// Recalculate this item's amounts.
   SalesDocItem recalculate() {
-    final gross = unitPrice * quantity;
+    final gross = salesRate * quantity;
     final discAmt = gross * (discountPercent / 100);
     final afterDiscount = gross - discAmt;
     final taxAmt = afterDiscount * (taxPercent / 100);
     return SalesDocItem(
       id: id,
       productId: productId,
-      sku: sku,
+      itemCode: itemCode,
       productName: productName,
-      unitPrice: unitPrice,
+      salesRate: salesRate,
       quantity: quantity,
       discountPercent: discountPercent,
       discountAmount: discAmt,
@@ -254,9 +254,9 @@ class SalesDocItem extends Equatable {
   SalesDocItem copyWith({
     Object? id = const Object(),
     int? productId,
-    String? sku,
+    String? itemCode,
     String? productName,
-    double? unitPrice,
+    double? salesRate,
     double? quantity,
     double? discountPercent,
     double? taxPercent,
@@ -264,9 +264,9 @@ class SalesDocItem extends Equatable {
     return SalesDocItem.create(
       id: id == const Object() ? this.id : id as int?,
       productId: productId ?? this.productId,
-      sku: sku ?? this.sku,
+      itemCode: itemCode ?? this.itemCode,
       productName: productName ?? this.productName,
-      unitPrice: unitPrice ?? this.unitPrice,
+      salesRate: salesRate ?? this.salesRate,
       quantity: quantity ?? this.quantity,
       discountPercent: discountPercent ?? this.discountPercent,
       taxPercent: taxPercent ?? this.taxPercent,
@@ -277,9 +277,9 @@ class SalesDocItem extends Equatable {
   List<Object?> get props => [
     id,
     productId,
-    sku,
+    itemCode,
     productName,
-    unitPrice,
+    salesRate,
     quantity,
     discountPercent,
     discountAmount,

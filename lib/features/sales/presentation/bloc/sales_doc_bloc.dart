@@ -84,7 +84,7 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final currentDoc = (state as SalesDocBuilding).activeDoc;
 
     final existingIndex = currentDoc.items.indexWhere(
-      (i) => i.sku == event.product.sku,
+      (i) => i.itemCode == event.product.itemCode,
     );
 
     final updatedItems = List<SalesDocItem>.from(currentDoc.items);
@@ -98,9 +98,9 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
       updatedItems.add(
         SalesDocItem.create(
           productId: event.product.id ?? 0,
-          sku: event.product.sku,
-          productName: event.product.name,
-          unitPrice: event.product.unitPrice,
+          itemCode: event.product.itemCode,
+          productName: event.product.itemName,
+          salesRate: event.product.salesRate,
           quantity: event.quantity,
         ),
       );
@@ -115,7 +115,7 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final currentDoc = (state as SalesDocBuilding).activeDoc;
 
     final updatedItems = currentDoc.items
-        .where((i) => i.sku != event.sku)
+        .where((i) => i.itemCode != event.itemCode)
         .toList();
 
     final updatedDoc = currentDoc.copyWith(items: updatedItems).recalculate();
@@ -130,12 +130,12 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final currentDoc = (state as SalesDocBuilding).activeDoc;
 
     if (event.quantity <= 0) {
-      add(RemoveDocItem(event.sku));
+      add(RemoveDocItem(itemCode: event.itemCode));
       return;
     }
 
     final updatedItems = currentDoc.items.map((item) {
-      if (item.sku == event.sku) {
+      if (item.itemCode == event.itemCode) {
         return item.copyWith(quantity: event.quantity);
       }
       return item;
@@ -150,8 +150,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final currentDoc = (state as SalesDocBuilding).activeDoc;
 
     final updatedItems = currentDoc.items.map((item) {
-      if (item.sku == event.sku) {
-        return item.copyWith(unitPrice: event.price);
+      if (item.itemCode == event.itemCode) {
+        return item.copyWith(salesRate: event.price);
       }
       return item;
     }).toList();
@@ -168,7 +168,7 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final currentDoc = (state as SalesDocBuilding).activeDoc;
 
     final updatedItems = currentDoc.items.map((item) {
-      if (item.sku == event.sku) {
+      if (item.itemCode == event.itemCode) {
         return item.copyWith(discountPercent: event.discountPercent);
       }
       return item;
@@ -186,8 +186,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final currentDoc = (state as SalesDocBuilding).activeDoc;
 
     final updatedItems = currentDoc.items.map((item) {
-      if (item.sku == event.sku) {
-        final gross = item.unitPrice * item.quantity;
+      if (item.itemCode == event.itemCode) {
+        final gross = item.salesRate * item.quantity;
         final discPct = gross > 0 ? (event.discountAmount / gross) * 100 : 0.0;
         return item.copyWith(discountPercent: discPct);
       }
@@ -203,7 +203,7 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     final currentDoc = (state as SalesDocBuilding).activeDoc;
 
     final updatedItems = currentDoc.items.map((item) {
-      if (item.sku == event.sku) {
+      if (item.itemCode == event.itemCode) {
         return item.copyWith(taxPercent: event.taxPercent);
       }
       return item;

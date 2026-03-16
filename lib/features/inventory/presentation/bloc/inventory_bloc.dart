@@ -28,7 +28,7 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
 
   // Track current filter state for "load more".
   String? _lastSearchQuery;
-  String? _lastCategory;
+  String? _lastProductGroup;
   bool? _lastLowStockOnly;
 
   Future<void> _onLoadProducts(
@@ -39,26 +39,26 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
     try {
       // Save filters for pagination.
       _lastSearchQuery = event.searchQuery;
-      _lastCategory = event.category;
+      _lastProductGroup = event.productGroup;
       _lastLowStockOnly = event.lowStockOnly;
 
       final products = await _repository.getProducts(
         searchQuery: event.searchQuery,
-        category: event.category,
+        productGroup: event.productGroup,
         lowStockOnly: event.lowStockOnly,
         limit: _pageSize,
         offset: 0,
       );
       final totalCount = await _repository.getProductCount(
         searchQuery: event.searchQuery,
-        category: event.category,
+        productGroup: event.productGroup,
         lowStockOnly: event.lowStockOnly,
       );
-      final categories = await _repository.getCategories();
+      final productGroups = await _repository.getProductGroups();
       emit(
         InventoryLoaded(
           products: products,
-          categories: categories,
+          productGroups: productGroups,
           totalProductCount: totalCount,
           hasMore: products.length < totalCount,
         ),
@@ -78,7 +78,7 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
     try {
       final nextPage = await _repository.getProducts(
         searchQuery: _lastSearchQuery,
-        category: _lastCategory,
+        productGroup: _lastProductGroup,
         lowStockOnly: _lastLowStockOnly,
         limit: _pageSize,
         offset: current.products.length,
@@ -88,7 +88,7 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
       emit(
         InventoryLoaded(
           products: allProducts,
-          categories: current.categories,
+          productGroups: current.productGroups,
           totalProductCount: current.totalProductCount,
           hasMore: allProducts.length < current.totalProductCount,
         ),
@@ -204,11 +204,11 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
         offset: 0,
       );
       final totalCount = await _repository.getProductCount();
-      final categories = await _repository.getCategories();
+      final productGroups = await _repository.getProductGroups();
       emit(
         InventoryLoaded(
           products: allProducts,
-          categories: categories,
+          productGroups: productGroups,
           csvImportCount: count,
           totalProductCount: totalCount,
           hasMore: allProducts.length < totalCount,
@@ -227,12 +227,12 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
       // For export we need ALL products, use a large limit.
       final products = await _repository.getProducts(limit: 100000, offset: 0);
       final csvData = CsvService.exportToCsv(products);
-      final categories = await _repository.getCategories();
+      final productGroups = await _repository.getProductGroups();
       final totalCount = await _repository.getProductCount();
       emit(
         InventoryLoaded(
           products: products.take(_pageSize).toList(),
-          categories: categories,
+          productGroups: productGroups,
           csvExportData: csvData,
           totalProductCount: totalCount,
           hasMore: products.length > _pageSize,

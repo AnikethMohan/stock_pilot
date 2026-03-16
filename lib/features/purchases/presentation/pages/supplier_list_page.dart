@@ -17,6 +17,7 @@ class SupplierListPage extends StatefulWidget {
 class _SupplierListPageState extends State<SupplierListPage> {
   List<Supplier> _suppliers = [];
   bool _isLoading = true;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -24,11 +25,11 @@ class _SupplierListPageState extends State<SupplierListPage> {
     _loadSuppliers();
   }
 
-  Future<void> _loadSuppliers() async {
+  Future<void> _loadSuppliers({String? search}) async {
     setState(() => _isLoading = true);
     final repo = context.read<SalesRepository>();
     try {
-      final suppliers = await repo.getSuppliers();
+      final suppliers = await repo.getSuppliers(searchQuery: search);
       if (mounted) setState(() => _suppliers = suppliers);
     } catch (e) {
       if (mounted) {
@@ -39,6 +40,10 @@ class _SupplierListPageState extends State<SupplierListPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _applyFilters() {
+    _loadSuppliers(search: _searchController.text);
   }
 
   Future<void> _showAddSupplierDialog() async {
@@ -124,38 +129,64 @@ class _SupplierListPageState extends State<SupplierListPage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _suppliers.isEmpty
-          ? const Center(child: Text('No suppliers found.'))
-          : ListView.separated(
-              itemCount: _suppliers.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final s = _suppliers[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.secondary,
-                    child: Text(s.name[0].toUpperCase()),
-                  ),
-                  title: Text(s.name),
-                  subtitle: Text(
-                    [
-                      s.address,
-                      s.phone,
-                      s.email,
-                    ].where((e) => e.isNotEmpty).join(' • '),
-                  ),
-                  onTap: () {
-                    if (widget.isSelectionMode) {
-                      Navigator.pop(context, s);
-                    } else {
-                      // TODO: Edit supplier
-                    }
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search suppliers',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) => _applyFilters(),
+            ),
+          ),
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (_suppliers.isEmpty) {
+                  return const Center(child: Text('No suppliers found.'));
+                }
+                return ListView.separated(
+                  itemCount: _suppliers.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final s = _suppliers[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.secondary,
+                        child: Text(s.name[0].toUpperCase()),
+                      ),
+                      title: Text(s.name),
+                      subtitle: Text(
+                        [
+                          s.address,
+                          s.phone,
+                          s.email,
+                        ].where((e) => e.isNotEmpty).join(' • '),
+                      ),
+                      onTap: () {
+                        if (widget.isSelectionMode) {
+                          Navigator.pop(context, s);
+                        } else {
+                          // TODO: Edit supplier
+                        }
+                      },
+                    );
                   },
                 );
               },
             ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSupplierDialog,
         child: const Icon(Icons.person_add),

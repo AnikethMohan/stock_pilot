@@ -108,7 +108,7 @@ class AppDefaults {
   static const double defaultLowStockThreshold = 10.0;
   static const bool defaultAllowNegativeStock = false;
   static const String dbName = 'stock_pilot.db';
-  static const int dbVersion = 4;
+  static const int dbVersion = 1;
   static const String defaultCurrencyCode = 'INR';
   static const String defaultCustomerName = 'Cash customer';
 }

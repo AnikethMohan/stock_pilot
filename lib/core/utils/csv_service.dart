@@ -13,13 +13,27 @@ class CsvService {
   /// Normalised names of columns that map to built-in Product fields.
   /// Used to identify which CSV columns are "extra" / custom attributes.
   static const _knownColumns = <String>{
+    'itemcode',
     'sku',
+    'itemname',
     'name',
     'brand',
+    'productgroup',
     'category',
     'description',
+    'detaileddescription',
     'moredescription',
+    'salesrate',
     'unitprice',
+    'purchaserate',
+    'wholesaleprice',
+    'mrp',
+    'profitpercentage',
+    'minimumsalerate',
+    'addinpartnumber1',
+    'addinpartnumber2',
+    'image',
+    'otherlanguage',
     'quantityonhand',
     'quantity',
     'unitofmeasure',
@@ -44,13 +58,22 @@ class CsvService {
     final sortedMetaKeys = metaKeys.toList()..sort();
 
     final headers = [
-      'SKU',
-      'Name',
+      'Item Code',
+      'Item Name',
       'Brand',
-      'Category',
-      'More Description',
+      'Product Group',
+      'Detailed Description',
       'Description',
-      'Unit Price',
+      'Sales Rate',
+      'Purchase Rate',
+      'Wholesale Price',
+      'MRP',
+      'Profit Percentage',
+      'Minimum Sale Rate',
+      'Addin Part Number 1',
+      'Addin Part Number 2',
+      'Image',
+      'Other Language',
       'Quantity on Hand',
       'Unit of Measure',
       'Low Stock Threshold',
@@ -65,13 +88,22 @@ class CsvService {
       // Build a quick lookup for this product's metadata.
       final metaMap = {for (final m in p.metadata) m.key: m.value};
       rows.add([
-        p.sku,
-        p.name,
+        p.itemCode,
+        p.itemName,
         p.brand,
-        p.category,
-        p.moreDescription,
+        p.productGroup,
+        p.detailedDescription,
         p.description,
-        p.unitPrice,
+        p.salesRate,
+        p.purchaseRate,
+        p.wholesalePrice,
+        p.mrp,
+        p.profitPercentage,
+        p.minimumSaleRate,
+        p.addinPartNumber1,
+        p.addinPartNumber2,
+        p.image,
+        p.otherLanguage,
         p.quantityOnHand,
         p.unitOfMeasure.label,
         p.lowStockThreshold,
@@ -97,7 +129,7 @@ class CsvService {
   /// Parse a CSV string into a list of [Product] objects ready for upsert.
   ///
   /// Uses header-mapping so column order doesn't matter.
-  /// Throws [FormatException] if required columns (`sku`, `name`) are missing.
+  /// Throws [FormatException] if required columns (`item_code`, `item_name`) are missing.
   static List<Product> parseCsv(String csvString) {
     // Normalise line endings — \r\n → \n, stray \r → \n.
     final normalised = csvString
@@ -128,12 +160,12 @@ class CsvService {
       }
     }
 
-    // Validate required columns
-    if (!headerMap.containsKey('sku')) {
-      throw const FormatException('CSV is missing the required "SKU" column.');
+    // Validate required columns (with backward compatibility)
+    if (!headerMap.containsKey('itemcode') && !headerMap.containsKey('sku')) {
+      throw const FormatException('CSV is missing the required "Item Code" column.');
     }
-    if (!headerMap.containsKey('name')) {
-      throw const FormatException('CSV is missing the required "Name" column.');
+    if (!headerMap.containsKey('itemname') && !headerMap.containsKey('name')) {
+      throw const FormatException('CSV is missing the required "Item Name" column.');
     }
 
     final products = <Product>[];
@@ -156,43 +188,48 @@ class CsvService {
 
       products.add(
         Product(
-          sku: _cell(row, headerMap, 'sku'),
-          name: _cell(row, headerMap, 'name'),
+          itemCode: _cell(row, headerMap, 'itemcode').isNotEmpty
+              ? _cell(row, headerMap, 'itemcode')
+              : _cell(row, headerMap, 'sku'),
+          itemName: _cell(row, headerMap, 'itemname').isNotEmpty
+              ? _cell(row, headerMap, 'itemname')
+              : _cell(row, headerMap, 'name'),
           brand: _cell(row, headerMap, 'brand'),
-          category: _cell(row, headerMap, 'category'),
-          moreDescription: _cell(row, headerMap, 'more_description').isNotEmpty
-              ? _cell(row, headerMap, 'more_description')
+          productGroup: _cell(row, headerMap, 'productgroup').isNotEmpty
+              ? _cell(row, headerMap, 'productgroup')
+              : _cell(row, headerMap, 'category'),
+          detailedDescription: _cell(row, headerMap, 'detaileddescription').isNotEmpty
+              ? _cell(row, headerMap, 'detaileddescription')
               : _cell(row, headerMap, 'moredescription'),
           description: _cell(row, headerMap, 'description'),
-          unitPrice:
+          salesRate:
+              _numCell(row, headerMap, 'salesrate') ??
               _numCell(row, headerMap, 'unitprice') ??
-              _numCell(row, headerMap, 'unit_price') ??
               0.0,
+          purchaseRate: _numCell(row, headerMap, 'purchaserate') ?? 0.0,
+          wholesalePrice: _numCell(row, headerMap, 'wholesaleprice') ?? 0.0,
+          mrp: _numCell(row, headerMap, 'mrp') ?? 0.0,
+          profitPercentage: _numCell(row, headerMap, 'profitpercentage') ?? 0.0,
+          minimumSaleRate: _numCell(row, headerMap, 'minimumsalerate') ?? 0.0,
+          addinPartNumber1: _cell(row, headerMap, 'addinpartnumber1'),
+          addinPartNumber2: _cell(row, headerMap, 'addinpartnumber2'),
+          image: _cell(row, headerMap, 'image'),
+          otherLanguage: _cell(row, headerMap, 'otherlanguage'),
           quantityOnHand:
               _numCell(row, headerMap, 'quantityonhand') ??
-              _numCell(row, headerMap, 'quantity_on_hand') ??
               _numCell(row, headerMap, 'quantity') ??
               0.0,
           unitOfMeasure: UnitOfMeasure.fromString(
             _cell(row, headerMap, 'unitofmeasure').isNotEmpty
                 ? _cell(row, headerMap, 'unitofmeasure')
-                : _cell(row, headerMap, 'unit_of_measure').isNotEmpty
-                ? _cell(row, headerMap, 'unit_of_measure')
                 : 'Pieces',
           ),
           lowStockThreshold:
               _numCell(row, headerMap, 'lowstockthreshold') ??
-              _numCell(row, headerMap, 'low_stock_threshold') ??
               10.0,
-          locationAisle: _cell(row, headerMap, 'locationaisle').isNotEmpty
-              ? _cell(row, headerMap, 'locationaisle')
-              : _cell(row, headerMap, 'location_aisle'),
-          locationShelf: _cell(row, headerMap, 'locationshelf').isNotEmpty
-              ? _cell(row, headerMap, 'locationshelf')
-              : _cell(row, headerMap, 'location_shelf'),
-          locationBin: _cell(row, headerMap, 'locationbin').isNotEmpty
-              ? _cell(row, headerMap, 'locationbin')
-              : _cell(row, headerMap, 'location_bin'),
+          locationAisle: _cell(row, headerMap, 'locationaisle'),
+          locationShelf: _cell(row, headerMap, 'locationshelf'),
+          locationBin: _cell(row, headerMap, 'locationbin'),
           metadata: metadata,
         ),
       );
