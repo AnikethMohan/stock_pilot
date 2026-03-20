@@ -96,104 +96,104 @@ class DashboardPage extends StatelessWidget {
               ),
 
               const SizedBox(height: 28),
-              Text(
-                'Recent Transactions',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
 
-              // ─── Recent transactions ───────────────────────────
-              if (data.recentTransactions.isEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Text(
-                        'No transactions yet.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                ...data.recentTransactions.map((txn) {
-                  final isPositive = txn.changeAmount >= 0;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isPositive
-                            ? AppTheme.success.withValues(alpha: 0.2)
-                            : AppTheme.error.withValues(alpha: 0.2),
-                        child: Icon(
-                          isPositive
-                              ? Icons.arrow_upward_rounded
-                              : Icons.arrow_downward_rounded,
-                          color: isPositive ? AppTheme.success : AppTheme.error,
-                        ),
-                      ),
-                      title: Text(
-                        txn.itemCode,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Text(
-                        '${txn.reason.label} • ${DateFormat.yMMMd().add_jm().format(txn.timestamp)}',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      trailing: Text(
-                        '${isPositive ? "+" : ""}${txn.changeAmount.toStringAsFixed(1)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: isPositive ? AppTheme.success : AppTheme.error,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+              // Text(
+              //   'Recent Transactions',
+              //   style: Theme.of(context).textTheme.titleLarge,
+              // ),
+              // const SizedBox(height: 12),
 
+              // // ─── Recent transactions ───────────────────────────
+              // if (data.recentTransactions.isEmpty)
+              //   Card(
+              //     child: Padding(
+              //       padding: const EdgeInsets.all(24),
+              //       child: Center(
+              //         child: Text(
+              //           'No transactions yet.',
+              //           style: Theme.of(context).textTheme.bodyMedium,
+              //         ),
+              //       ),
+              //     ),
+              //   )
+              // else
+              //   ...data.recentTransactions.map((txn) {
+              //     final isPositive = txn.changeAmount >= 0;
+              //     return Card(
+              //       margin: const EdgeInsets.only(bottom: 8),
+              //       child: ListTile(
+              //         leading: CircleAvatar(
+              //           backgroundColor: isPositive
+              //               ? AppTheme.success.withValues(alpha: 0.2)
+              //               : AppTheme.error.withValues(alpha: 0.2),
+              //           child: Icon(
+              //             isPositive
+              //                 ? Icons.arrow_upward_rounded
+              //                 : Icons.arrow_downward_rounded,
+              //             color: isPositive ? AppTheme.success : AppTheme.error,
+              //           ),
+              //         ),
+              //         title: Text(
+              //           txn.itemCode,
+              //           style: const TextStyle(fontWeight: FontWeight.w600),
+              //         ),
+              //         subtitle: Text(
+              //           '${txn.reason.label} • ${DateFormat.yMMMd().add_jm().format(txn.timestamp)}',
+              //           style: Theme.of(context).textTheme.bodyMedium,
+              //         ),
+              //         trailing: Text(
+              //           '${isPositive ? "+" : ""}${txn.changeAmount.toStringAsFixed(1)}',
+              //           style: TextStyle(
+              //             fontWeight: FontWeight.bold,
+              //             fontSize: 16,
+              //             color: isPositive ? AppTheme.success : AppTheme.error,
+              //           ),
+              //         ),
+              //       ),
+              //     );
+              //   }),
               const SizedBox(height: 28),
-              if (data.topSellingItems.isNotEmpty) ...[
-                Text(
-                  'Top Selling Items',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: data.topSellingItems.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final entry = data.topSellingItems.entries.elementAt(
-                        index,
-                      );
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blueAccent.withValues(
-                            alpha: 0.2,
-                          ),
-                          foregroundColor: Colors.blueAccent,
-                          child: Text('${index + 1}'),
-                        ),
-                        title: Text(
-                          entry.key,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        trailing: Text(
-                          '${entry.value} sold',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+              // if (data.topSellingItems.isNotEmpty) ...[
+              //   Text(
+              //     'Top Selling Items',
+              //     style: Theme.of(context).textTheme.titleLarge,
+              //   ),
+              //   const SizedBox(height: 12),
+              //   Card(
+              //     child: ListView.separated(
+              //       shrinkWrap: true,
+              //       physics: const NeverScrollableScrollPhysics(),
+              //       itemCount: data.topSellingItems.length,
+              //       separatorBuilder: (context, index) =>
+              //           const Divider(height: 1),
+              //       itemBuilder: (context, index) {
+              //         final entry = data.topSellingItems.entries.elementAt(
+              //           index,
+              //         );
+              //         return ListTile(
+              //           leading: CircleAvatar(
+              //             backgroundColor: Colors.blueAccent.withValues(
+              //               alpha: 0.2,
+              //             ),
+              //             foregroundColor: Colors.blueAccent,
+              //             child: Text('${index + 1}'),
+              //           ),
+              //           title: Text(
+              //             entry.key,
+              //             style: const TextStyle(fontWeight: FontWeight.w600),
+              //           ),
+              //           trailing: Text(
+              //             '${entry.value} sold',
+              //             style: const TextStyle(
+              //               fontWeight: FontWeight.bold,
+              //               fontSize: 16,
+              //             ),
+              //           ),
+              //         );
+              //       },
+              //     ),
+              //   ),
+              // ],
             ],
           ),
         );

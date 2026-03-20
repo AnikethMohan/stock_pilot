@@ -55,7 +55,8 @@ class _StockAdjustDialogState extends State<StockAdjustDialog> {
                   _reason = v ?? TransactionReason.restock;
                   _isNegative =
                       _reason == TransactionReason.sale ||
-                      _reason == TransactionReason.damage;
+                      _reason == TransactionReason.damage ||
+                      _reason == TransactionReason.out;
                 });
               },
             ),

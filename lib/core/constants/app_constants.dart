@@ -27,6 +27,8 @@ enum TransactionReason {
   sale('Sale'),
   restock('Restock'),
   damage('Damage'),
+  inn('In'),
+  out('Out'),
   correction('Correction'),
   csvImport('CSV Import');
 

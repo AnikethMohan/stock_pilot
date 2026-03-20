@@ -2,12 +2,8 @@ name: Build Windows Desktop
 
 on:
   push:
-    branches:
-      - main
-      - release
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   build:

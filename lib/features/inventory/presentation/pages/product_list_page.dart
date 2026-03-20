@@ -292,11 +292,12 @@ class _ProductListPageState extends State<ProductListPage> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          SizedBox(
-            width: double.infinity,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: DataTable(
               dataRowMaxHeight: 70,
               columns: const [
+                DataColumn(label: Text('Image')),
                 DataColumn(label: Text('Item Code')),
                 DataColumn(label: Text('Name')),
                 DataColumn(label: Text('Description')),
@@ -309,6 +310,20 @@ class _ProductListPageState extends State<ProductListPage> {
               rows: state.products.map((p) {
                 return DataRow(
                   cells: [
+                    DataCell(
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          height: 50,
+                          width: 50,
+                          child: buildImageView(
+                            p.image,
+                            fit: BoxFit.contain,
+                            errorIconSize: 20,
+                          ),
+                        ),
+                      ),
+                    ),
                     DataCell(Text(p.itemCode)),
                     DataCell(
                       ConstrainedBox(
@@ -438,6 +453,19 @@ class _ProductListPageState extends State<ProductListPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadiusGeometry.circular(10),
+              child: SizedBox(
+                height: 40,
+                width: 40,
+
+                child: buildImageView(
+                  p.image,
+                  fit: BoxFit.contain,
+                  errorIconSize: 20,
+                ),
+              ),
+            ),
             title: Text(
               p.itemName,
               style: const TextStyle(fontWeight: FontWeight.w600),

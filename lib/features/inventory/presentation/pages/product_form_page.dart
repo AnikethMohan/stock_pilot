@@ -1,10 +1,8 @@
 /// Product add/edit form with dynamic metadata fields and image selector.
 library;
 
-import 'dart:developer';
 import 'dart:io';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -219,321 +217,302 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit Product' : 'New Product'),
       ),
-      body: Row(
-        children: [
-          _buildImageSelector(),
+      body: isMobile
+          ? Column(children: [_buildImageSelector(), productForm()])
+          : Row(children: [_buildImageSelector(), productForm()]),
+    );
+  }
 
-          Expanded(
-            flex: 4,
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  const SizedBox(height: 24),
-                  _SectionHeader('Basic Information'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _itemCodeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Item Code *',
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Required'
-                              : null,
-                          enabled: !widget.isEditing,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _barcodeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Barcode',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _itemNameCtrl,
-                    decoration: const InputDecoration(labelText: 'Item Name *'),
+  Widget productForm() {
+    return Expanded(
+      flex: 4,
+      child: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const SizedBox(height: 24),
+            _SectionHeader('Basic Information'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _itemCodeCtrl,
+                    decoration: const InputDecoration(labelText: 'Item Code *'),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    enabled: !widget.isEditing,
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _brandCtrl,
-                          decoration: const InputDecoration(labelText: 'Brand'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _productGroupCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Product Group',
-                          ),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _barcodeCtrl,
+                    decoration: const InputDecoration(labelText: 'Barcode'),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _descriptionCtrl,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    maxLines: 2,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _itemNameCtrl,
+              decoration: const InputDecoration(labelText: 'Item Name *'),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _brandCtrl,
+                    decoration: const InputDecoration(labelText: 'Brand'),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _detailedDescriptionCtrl,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _productGroupCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Detailed Description',
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _addinPartNumber1Ctrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Addin Part Number 1',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _addinPartNumber2Ctrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Addin Part Number 2',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _otherLanguageCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Other Language',
+                      labelText: 'Product Group',
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  _SectionHeader('Pricing'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _salesRateCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Sales Rate',
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _purchaseRateCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Purchase Rate',
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _wholesalePriceCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Wholesale Price',
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _mrpCtrl,
-                          decoration: const InputDecoration(labelText: 'MRP'),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _profitPercentageCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Profit %',
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _minimumSaleRateCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Min Sale Rate',
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _SectionHeader('Stock & Units'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _qtyCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Quantity on Hand',
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: DropdownButtonFormField<UnitOfMeasure>(
-                          initialValue: _selectedUnit,
-                          decoration: const InputDecoration(
-                            labelText: 'Unit of Measure',
-                          ),
-                          items: UnitOfMeasure.values
-                              .map(
-                                (u) => DropdownMenuItem(
-                                  value: u,
-                                  child: Text(u.label),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(
-                            () => _selectedUnit = v ?? UnitOfMeasure.pieces,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _thresholdCtrl,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _descriptionCtrl,
+              decoration: const InputDecoration(labelText: 'Description'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _detailedDescriptionCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Detailed Description',
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _addinPartNumber1Ctrl,
                     decoration: const InputDecoration(
-                      labelText: 'Low Stock Threshold',
+                      labelText: 'Addin Part Number 1',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _addinPartNumber2Ctrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Addin Part Number 2',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _otherLanguageCtrl,
+              decoration: const InputDecoration(labelText: 'Other Language'),
+            ),
+            const SizedBox(height: 24),
+            _SectionHeader('Pricing'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _salesRateCtrl,
+                    decoration: const InputDecoration(labelText: 'Sales Rate'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _purchaseRateCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Purchase Rate',
                     ),
                     keyboardType: TextInputType.number,
                   ),
-
-                  const SizedBox(height: 24),
-                  _SectionHeader('Physical Location'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _aisleCtrl,
-                          decoration: const InputDecoration(labelText: 'Aisle'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _shelfCtrl,
-                          decoration: const InputDecoration(labelText: 'Shelf'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _binCtrl,
-                          decoration: const InputDecoration(labelText: 'Bin'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-                  _SectionHeader('Custom Attributes'),
-                  const SizedBox(height: 12),
-                  ..._metaRows.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final m = entry.value;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: m.keyCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Key',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: m.valueCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Value',
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: () =>
-                                setState(() => _metaRows.removeAt(i)),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  TextButton.icon(
-                    onPressed: () => setState(
-                      () => _metaRows.add(
-                        _MetaRow(
-                          keyCtrl: TextEditingController(),
-                          valueCtrl: TextEditingController(),
-                        ),
-                      ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _wholesalePriceCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Wholesale Price',
                     ),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Attribute'),
+                    keyboardType: TextInputType.number,
                   ),
-
-                  const SizedBox(height: 32),
-                  FilledButton(
-                    onPressed: _submit,
-                    child: Text(
-                      widget.isEditing ? 'Save Changes' : 'Create Product',
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _mrpCtrl,
+                    decoration: const InputDecoration(labelText: 'MRP'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _profitPercentageCtrl,
+                    decoration: const InputDecoration(labelText: 'Profit %'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _minimumSaleRateCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Min Sale Rate',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _SectionHeader('Stock & Units'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _qtyCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity on Hand',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: DropdownButtonFormField<UnitOfMeasure>(
+                    initialValue: _selectedUnit,
+                    decoration: const InputDecoration(
+                      labelText: 'Unit of Measure',
+                    ),
+                    items: UnitOfMeasure.values
+                        .map(
+                          (u) =>
+                              DropdownMenuItem(value: u, child: Text(u.label)),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(
+                      () => _selectedUnit = v ?? UnitOfMeasure.pieces,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _thresholdCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Low Stock Threshold',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+
+            const SizedBox(height: 24),
+            _SectionHeader('Physical Location'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _aisleCtrl,
+                    decoration: const InputDecoration(labelText: 'Aisle'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _shelfCtrl,
+                    decoration: const InputDecoration(labelText: 'Shelf'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _binCtrl,
+                    decoration: const InputDecoration(labelText: 'Bin'),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+            _SectionHeader('Custom Attributes'),
+            const SizedBox(height: 12),
+            ..._metaRows.asMap().entries.map((entry) {
+              final i = entry.key;
+              final m = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: m.keyCtrl,
+                        decoration: const InputDecoration(labelText: 'Key'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: m.valueCtrl,
+                        decoration: const InputDecoration(labelText: 'Value'),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: () => setState(() => _metaRows.removeAt(i)),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            TextButton.icon(
+              onPressed: () => setState(
+                () => _metaRows.add(
+                  _MetaRow(
+                    keyCtrl: TextEditingController(),
+                    valueCtrl: TextEditingController(),
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Attribute'),
+            ),
+
+            const SizedBox(height: 32),
+            FilledButton(
+              onPressed: _submit,
+              child: Text(widget.isEditing ? 'Save Changes' : 'Create Product'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -564,7 +543,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: hasImage
-                      ? _buildImageView(imagePath)
+                      ? buildImageView(imagePath)
                       : const Center(
                           child: Icon(
                             Icons.image_outlined,
@@ -596,60 +575,28 @@ class _ProductFormPageState extends State<ProductFormPage> {
           const SizedBox(height: 16),
           Row(
             children: [
-              OutlinedButton.icon(
+              IconButton(
                 onPressed: _pickImage,
+                tooltip: 'Pick Image',
                 icon: const Icon(Icons.photo_library_outlined),
-                label: const SizedBox(),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              IconButton(
                 onPressed: _openWebBrowser,
+                tooltip: 'Open Web Browser',
                 icon: const Icon(Icons.public),
-                label: const SizedBox(),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              IconButton(
+                tooltip: 'Add image URL',
                 onPressed: () => _showUrlDialog(),
                 icon: const Icon(Icons.link),
-                label: const SizedBox(),
               ),
             ],
           ),
         ],
       ),
     );
-  }
-
-  Widget _buildImageView(String path) {
-    if (path.startsWith('data:image')) {
-      try {
-        final base64String = path.split(',').last;
-        return Image.memory(
-          base64Decode(base64String),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              const Center(child: Icon(Icons.broken_image, size: 64)),
-        );
-      } catch (e) {
-        return const Center(child: Icon(Icons.broken_image, size: 64));
-      }
-    } else if (path.startsWith('http')) {
-      return Image.network(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            const Center(child: Icon(Icons.broken_image, size: 64)),
-      );
-    } else {
-      return Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          log('$error');
-          return const Center(child: Icon(Icons.broken_image, size: 64));
-        },
-      );
-    }
   }
 
   Future<void> _openWebBrowser() async {
@@ -696,6 +643,41 @@ class _ProductFormPageState extends State<ProductFormPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+Widget buildImageView(
+  String path, {
+  BoxFit fit = BoxFit.cover,
+  double errorIconSize = 64,
+}) {
+  if (path.startsWith('data:image')) {
+    try {
+      final base64String = path.split(',').last;
+      return Image.memory(
+        base64Decode(base64String),
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) =>
+            Center(child: Icon(Icons.broken_image, size: errorIconSize)),
+      );
+    } catch (e) {
+      return Center(child: Icon(Icons.broken_image, size: errorIconSize));
+    }
+  } else if (path.startsWith('http')) {
+    return Image.network(
+      path,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) =>
+          Center(child: Icon(Icons.broken_image, size: errorIconSize)),
+    );
+  } else {
+    return Image.file(
+      File(path),
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Center(child: Icon(Icons.broken_image, size: errorIconSize));
+      },
     );
   }
 }
@@ -765,8 +747,8 @@ class _WebBrowserDialogState extends State<_WebBrowserDialog> {
                     supportZoom: true,
                     allowsInlineMediaPlayback: true,
                     disableContextMenu: false,
-                    userAgent:
-                        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                    // userAgent:
+                    //     "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
                   ),
                   onWebViewCreated: (controller) {
                     webViewController = controller;
@@ -780,8 +762,6 @@ class _WebBrowserDialogState extends State<_WebBrowserDialog> {
                     );
                   },
                   onLoadStop: (controller, url) async {
-                    log('WebView loaded: $url');
-                    // Inject JavaScript to listen for clicks on images
                     await controller.evaluateJavascript(
                       source: """
                       document.addEventListener('click', function(e) {
@@ -802,9 +782,6 @@ class _WebBrowserDialogState extends State<_WebBrowserDialog> {
                     });
                   },
                   onLongPressHitTestResult: (controller, hitTestResult) async {
-                    log(
-                      'Long press hit test: ${hitTestResult.type} extra: ${hitTestResult.extra}',
-                    );
                     if (hitTestResult.type ==
                             InAppWebViewHitTestResultType.IMAGE_TYPE ||
                         hitTestResult.type ==
