@@ -162,6 +162,53 @@ class UpdateNotes extends SalesDocEvent {
   List<Object?> get props => [notes];
 }
 
+/// Update the return reason of the active document.
+class UpdateReturnReason extends SalesDocEvent {
+  const UpdateReturnReason(this.reason);
+  final ReturnReason reason;
+
+  @override
+  List<Object?> get props => [reason];
+}
+
+/// Update the return to stock flag of the active document.
+class UpdateReturnToStock extends SalesDocEvent {
+  const UpdateReturnToStock(this.returnToStock);
+  final bool returnToStock;
+
+  @override
+  List<Object?> get props => [returnToStock];
+}
+
+/// Update item disposition.
+class UpdateItemDisposition extends SalesDocEvent {
+  const UpdateItemDisposition({required this.itemCode, this.disposition});
+  final String itemCode;
+  final ItemDisposition? disposition;
+
+  @override
+  List<Object?> get props => [itemCode, disposition];
+}
+
+/// Update item return condition.
+class UpdateItemReturnCondition extends SalesDocEvent {
+  const UpdateItemReturnCondition({required this.itemCode, this.condition});
+  final String itemCode;
+  final String? condition;
+
+  @override
+  List<Object?> get props => [itemCode, condition];
+}
+
+/// Update whether to generate a credit note.
+class UpdateGenerateCreditNote extends SalesDocEvent {
+  const UpdateGenerateCreditNote(this.generate);
+  final bool generate;
+
+  @override
+  List<Object?> get props => [generate];
+}
+
 /// Save the active document as a draft.
 class SaveDraft extends SalesDocEvent {
   const SaveDraft();

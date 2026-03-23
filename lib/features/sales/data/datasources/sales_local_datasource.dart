@@ -1,6 +1,8 @@
 /// Local data source for Sales — raw SQLite operations for customers and sales documents.
 library;
 
+import 'dart:developer';
+
 import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/core/database/database_helper.dart';
 import 'package:stock_pilot/core/error/failures.dart';
@@ -332,12 +334,37 @@ class SalesLocalDataSource {
     final db = await _dbHelper.database;
 
     return db.transaction((txn) async {
-      final bool affectsStock =
-          doc.docType == DocType.deliveryNote ||
-          doc.docType == DocType.invoice ||
-          doc.docType == DocType.materialReceipt;
+      bool sourceAffections = false;
+      if (doc.sourceDocId != null) {
+        final sourceRow = await txn.query(
+          'sales_documents',
+          columns: ['doc_type'],
+          where: 'id = ?',
+          whereArgs: [doc.sourceDocId],
+        );
+        if (sourceRow.isNotEmpty) {
+          final sTypeStr = sourceRow.first['doc_type'] as String;
+          final sType = DocType.fromString(sTypeStr);
+          sourceAffections =
+              sType == DocType.deliveryNote || sType == DocType.materialReceipt;
+        }
+      }
 
-      final bool isRestock = doc.docType == DocType.materialReceipt;
+      final bool affectsStock =
+          ((doc.docType == DocType.deliveryNote ||
+                  doc.docType == DocType.invoice ||
+                  doc.docType == DocType.materialReceipt ||
+                  doc.docType == DocType.purchaseInvoice) &&
+              !sourceAffections) ||
+          (doc.docType == DocType.creditNote && doc.returnToStock) ||
+          doc.docType == DocType.deliveryReturn;
+
+      final bool isRestock =
+          ((doc.docType == DocType.materialReceipt ||
+                  doc.docType == DocType.purchaseInvoice) &&
+              !sourceAffections) ||
+          (doc.docType == DocType.creditNote && doc.returnToStock) ||
+          doc.docType == DocType.deliveryReturn;
 
       if (affectsStock) {
         // 1. Check stock settings
@@ -351,6 +378,12 @@ class SalesLocalDataSource {
 
         // 2. Validate stock & decrement items
         for (final item in doc.items) {
+          if (doc.docType == DocType.deliveryReturn &&
+              (item.disposition ?? ItemDisposition.restock) !=
+                  ItemDisposition.restock) {
+            continue; // Only restock items affect inventory during delivery return
+          }
+
           final productRows = await txn.query(
             'products',
             columns: ['quantity_on_hand'],
@@ -394,7 +427,11 @@ class SalesLocalDataSource {
             timestamp: DateTime.now(),
             changeAmount: isRestock ? item.quantity : -item.quantity,
             reason: isRestock
-                ? TransactionReason.restock
+                ? (doc.docType == DocType.creditNote
+                      ? TransactionReason.customerReturn
+                      : (doc.docType == DocType.deliveryReturn
+                            ? TransactionReason.deliveryReturn
+                            : TransactionReason.restock))
                 : TransactionReason.sale,
             resultingTotal: newQty,
             notes: '${doc.docType.label} ${doc.docNumber}',
@@ -538,6 +575,68 @@ class SalesLocalDataSource {
         }
       }
 
+      // 6. Generate Draft Credit Note if requested
+      if (docToSave.docType == DocType.deliveryReturn &&
+          docToSave.generateCreditNote) {
+        try {
+          final result = await txn.rawQuery(
+            "SELECT COUNT(*) as cnt FROM sales_documents WHERE doc_type = ?",
+            [DocType.creditNote.value],
+          );
+          final count = (result.first['cnt'] as int?) ?? 0;
+          final newDocNumber =
+              '${DocType.creditNote.prefix}-${(count + 1).toString().padLeft(5, '0')}';
+
+          final cnDoc = SalesDocument(
+            docType: DocType.creditNote,
+            docNumber: newDocNumber,
+            customer: docToSave.customer,
+            customerId: docToSave.customerId,
+            supplier: docToSave.supplier,
+            supplierId: docToSave.supplierId,
+            items: docToSave.items
+                .map(
+                  (i) => SalesDocItem(
+                    // We use standard constructor to drop specific fields like id, disposition, and returnCondition
+                    productId: i.productId,
+                    itemCode: i.itemCode,
+                    productName: i.productName,
+                    salesRate: i.salesRate,
+                    quantity: i.quantity,
+                    discountPercent: i.discountPercent,
+                    discountAmount: i.discountAmount,
+                    taxPercent: i.taxPercent,
+                    taxAmount: i.taxAmount,
+                    lineTotal: i.lineTotal,
+                  ),
+                )
+                .toList(),
+            subtotal: docToSave.subtotal,
+            discountPercent: docToSave.discountPercent,
+            discountAmount: docToSave.discountAmount,
+            taxAmount: docToSave.taxAmount,
+            grandTotal: docToSave.grandTotal,
+            status: DocStatus.draft,
+            sourceDocId: docToSave.sourceDocId,
+            sourceDocNumber: docToSave.sourceDocNumber,
+            notes: 'Auto-generated from Delivery Return ${docToSave.docNumber}',
+            createdAt: DateTime.now(),
+          );
+
+          final cnDocMap = SalesDocumentModel.toMap(cnDoc);
+          final cnDocId = await txn.insert('sales_documents', cnDocMap);
+
+          for (final item in cnDoc.items) {
+            await txn.insert(
+              'sales_document_items',
+              SalesDocItemModel.toMap(item, cnDocId),
+            );
+          }
+        } catch (e) {
+          log(e.toString());
+        }
+      }
+
       return docToSave.copyWith(
         id: returnedDocId,
         customer: confirmedDoc.customer?.copyWith(id: customerId),
@@ -585,11 +684,17 @@ class SalesLocalDataSource {
   Future<double> getRevenueToday() async {
     final db = await _dbHelper.database;
     final result = await db.rawQuery('''
-      SELECT SUM(grand_total) as today_rev 
+      SELECT SUM(
+        CASE 
+          WHEN doc_type = '${DocType.invoice.value}' THEN grand_total 
+          WHEN doc_type = '${DocType.creditNote.value}' THEN -grand_total 
+          ELSE 0 
+        END
+      ) as today_rev 
       FROM sales_documents 
-      WHERE status = 'confirmed' 
-        AND doc_type = 'invoice'
-        AND date(created_at, 'localtime') = date('now', 'localtime')
+      WHERE status = '${DocStatus.confirmed.value}' 
+        AND doc_type IN ('${DocType.invoice.value}', '${DocType.creditNote.value}')
+        AND date(created_at) = date('now', 'localtime')
     ''');
     final val = result.first['today_rev'];
     return val != null ? (val as num).toDouble() : 0.0;
@@ -603,7 +708,7 @@ class SalesLocalDataSource {
       SELECT si.product_name, SUM(si.quantity) as total_sold
       FROM sales_document_items si
       JOIN sales_documents s ON si.document_id = s.id
-      WHERE s.status = 'confirmed' AND s.doc_type = 'invoice'
+      WHERE s.status = '${DocStatus.confirmed.value}' AND s.doc_type = '${DocType.invoice.value}'
       GROUP BY si.product_name
       ORDER BY total_sold DESC
       LIMIT ?

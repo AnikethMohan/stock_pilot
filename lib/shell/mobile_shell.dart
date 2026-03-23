@@ -27,12 +27,20 @@ class _MobileShellState extends State<MobileShell> {
     ProductListPage(),
     TransactionHistoryPage(),
     SalesDocListPage(),
+    // Sales
     CustomSeparatePage(key: ValueKey('quotation'), docType: DocType.quotation),
     CustomSeparatePage(
       key: ValueKey('deliveryNote'),
       docType: DocType.deliveryNote,
     ),
     CustomSeparatePage(key: ValueKey('invoice'), docType: DocType.invoice),
+    CustomSeparatePage(
+      key: ValueKey('deliveryReturn'),
+      docType: DocType.deliveryReturn,
+    ),
+    CustomSeparatePage(key: ValueKey('creditNote'), docType: DocType.creditNote),
+
+    // Purchases
     CustomSeparatePage(
       key: ValueKey('purchaseOrder'),
       docType: DocType.purchaseOrder,
@@ -113,7 +121,21 @@ class _MobileShellState extends State<MobileShell> {
                     Icons.local_shipping_outlined,
                     'Delivery Notes',
                   ),
-                  _buildDrawerItem(6, Icons.receipt_long_outlined, 'Invoices'),
+                  _buildDrawerItem(
+                    6,
+                    Icons.receipt_long_outlined,
+                    'Sales Invoices',
+                  ),
+                  _buildDrawerItem(
+                    7,
+                    Icons.assignment_return_outlined,
+                    'Delivery Returns',
+                  ),
+                  _buildDrawerItem(
+                    8,
+                    Icons.account_balance_wallet_outlined,
+                    'Credit Notes',
+                  ),
                   const Divider(indent: 16, endIndent: 16),
                   Padding(
                     padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
@@ -126,18 +148,22 @@ class _MobileShellState extends State<MobileShell> {
                     ),
                   ),
                   _buildDrawerItem(
-                    7,
-                    Icons.request_quote_outlined,
+                    9,
+                    Icons.shopping_cart_outlined,
                     'Purchase Orders',
                   ),
                   _buildDrawerItem(
-                    8,
+                    10,
                     Icons.inventory_2_outlined,
                     'Material Receipts',
                   ),
-                  _buildDrawerItem(9, Icons.request_quote, 'Purchase Invoices'),
+                  _buildDrawerItem(
+                    11,
+                    Icons.request_quote_outlined,
+                    'Purchase Invoices',
+                  ),
                   const Divider(indent: 16, endIndent: 16),
-                  _buildDrawerItem(10, Icons.settings_outlined, 'Settings'),
+                  _buildDrawerItem(12, Icons.settings_outlined, 'Settings'),
                 ],
               ),
             ),

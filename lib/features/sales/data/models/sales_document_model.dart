@@ -28,6 +28,9 @@ class SalesDocumentModel {
       'delivery_date': doc.deliveryDate?.toIso8601String(),
       'payment_status': doc.paymentStatus,
       'notes': doc.notes,
+      'return_reason': doc.returnReason?.name,
+      'return_to_stock': doc.returnToStock ? 1 : 0,
+      'generate_credit_note': doc.generateCreditNote ? 1 : 0,
       'created_at': doc.createdAt?.toIso8601String() ?? now,
     };
   }
@@ -69,6 +72,11 @@ class SalesDocumentModel {
           : null,
       paymentStatus: map['payment_status'] as String?,
       notes: (map['notes'] as String?) ?? '',
+      returnReason: map['return_reason'] != null
+          ? ReturnReason.fromString(map['return_reason'] as String)
+          : null,
+      returnToStock: (map['return_to_stock'] as int?) == 1,
+      generateCreditNote: (map['generate_credit_note'] as int?) == 1,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
@@ -95,6 +103,8 @@ class SalesDocItemModel {
       'tax_percent': item.taxPercent,
       'tax_amount': item.taxAmount,
       'line_total': item.lineTotal,
+      'disposition': item.disposition?.name,
+      'return_condition': item.returnCondition,
     };
   }
 
@@ -112,6 +122,10 @@ class SalesDocItemModel {
       taxPercent: (map['tax_percent'] as num?)?.toDouble() ?? 0.0,
       taxAmount: (map['tax_amount'] as num?)?.toDouble() ?? 0.0,
       lineTotal: (map['line_total'] as num).toDouble(),
+      disposition: map['disposition'] != null
+          ? ItemDisposition.fromString(map['disposition'] as String)
+          : null,
+      returnCondition: map['return_condition'] as String?,
     );
   }
 }

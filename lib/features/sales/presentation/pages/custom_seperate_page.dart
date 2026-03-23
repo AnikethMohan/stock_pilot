@@ -148,6 +148,14 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
         typeIcon = Icons.request_quote;
         statusColor = isConfirmed ? AppTheme.success : AppTheme.warning;
         break;
+      case DocType.creditNote:
+        typeIcon = Icons.keyboard_return;
+        statusColor = isConfirmed ? AppTheme.success : AppTheme.warning;
+        break;
+      case DocType.deliveryReturn:
+        typeIcon = Icons.keyboard_return_outlined;
+        statusColor = isConfirmed ? AppTheme.success : AppTheme.warning;
+        break;
     }
 
     return Card(
@@ -218,6 +226,31 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
                   child: Text('Convert → Invoice'),
                 ),
               );
+              if (isConfirmed) {
+                // Only show Convert to Delivery Return
+                // if it's a Delivery Note
+                if (doc.docType == DocType.deliveryNote) {
+                  items.add(
+                    const PopupMenuItem(
+                      value: 'to_delivery_return',
+                      child: Text('Convert → Delivery Return'),
+                    ),
+                  );
+                }
+              }
+            } else if (doc.docType == DocType.invoice) {
+              if (isConfirmed) {
+                // Only show Convert to Credit Note
+                // if it's an Invoice
+                if (doc.docType == DocType.invoice) {
+                  items.add(
+                    const PopupMenuItem(
+                      value: 'to_credit_note',
+                      child: Text('Convert → Credit Note'),
+                    ),
+                  );
+                }
+              }
             } else if (doc.docType == DocType.purchaseOrder) {
               items.add(
                 const PopupMenuItem(
@@ -291,6 +324,49 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
       case 'to_invoice':
         bloc.add(
           ConvertDocument(sourceDocId: doc.id!, targetType: DocType.invoice),
+        );
+        if (mounted) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          final state = bloc.state;
+          if (state is SalesDocBuilding && mounted) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SalesDocBuilderPage(document: state.activeDoc),
+              ),
+            );
+            if (mounted) {
+              bloc.add(LoadDocuments(typeFilter: widget.docType));
+            }
+          }
+        }
+        break;
+      case 'to_credit_note':
+        bloc.add(
+          ConvertDocument(sourceDocId: doc.id!, targetType: DocType.creditNote),
+        );
+        if (mounted) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          final state = bloc.state;
+          if (state is SalesDocBuilding && mounted) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SalesDocBuilderPage(document: state.activeDoc),
+              ),
+            );
+            if (mounted) {
+              bloc.add(LoadDocuments(typeFilter: widget.docType));
+            }
+          }
+        }
+        break;
+      case 'to_delivery_return':
+        bloc.add(
+          ConvertDocument(
+            sourceDocId: doc.id!,
+            targetType: DocType.deliveryReturn,
+          ),
         );
         if (mounted) {
           await Future.delayed(const Duration(milliseconds: 300));

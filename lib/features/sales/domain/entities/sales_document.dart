@@ -28,6 +28,9 @@ class SalesDocument extends Equatable {
     this.deliveryDate,
     this.paymentStatus,
     this.notes = '',
+    this.returnReason,
+    this.returnToStock = false,
+    this.generateCreditNote = false,
     this.createdAt,
   });
 
@@ -51,6 +54,9 @@ class SalesDocument extends Equatable {
   final DateTime? deliveryDate;
   final String? paymentStatus;
   final String notes;
+  final ReturnReason? returnReason;
+  final bool returnToStock;
+  final bool generateCreditNote;
   final DateTime? createdAt;
 
   /// Recalculate all totals from current items and global discount.
@@ -119,6 +125,9 @@ class SalesDocument extends Equatable {
     DateTime? deliveryDate,
     String? paymentStatus,
     String? notes,
+    ReturnReason? returnReason,
+    bool? returnToStock,
+    bool? generateCreditNote,
     DateTime? createdAt,
   }) {
     return SalesDocument(
@@ -142,6 +151,9 @@ class SalesDocument extends Equatable {
       deliveryDate: deliveryDate ?? this.deliveryDate,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       notes: notes ?? this.notes,
+      returnReason: returnReason ?? this.returnReason,
+      returnToStock: returnToStock ?? this.returnToStock,
+      generateCreditNote: generateCreditNote ?? this.generateCreditNote,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -168,6 +180,9 @@ class SalesDocument extends Equatable {
     deliveryDate,
     paymentStatus,
     notes,
+    returnReason,
+    returnToStock,
+    generateCreditNote,
     createdAt,
   ];
 }
@@ -186,6 +201,8 @@ class SalesDocItem extends Equatable {
     this.taxPercent = 0.0,
     this.taxAmount = 0.0,
     this.lineTotal = 0,
+    this.disposition,
+    this.returnCondition,
   });
 
   final int? id;
@@ -199,6 +216,8 @@ class SalesDocItem extends Equatable {
   final double taxPercent;
   final double taxAmount;
   final double lineTotal;
+  final ItemDisposition? disposition;
+  final String? returnCondition;
 
   /// Create with auto-calculated totals.
   factory SalesDocItem.create({
@@ -210,6 +229,8 @@ class SalesDocItem extends Equatable {
     double quantity = 1,
     double discountPercent = 0.0,
     double taxPercent = 0.0,
+    ItemDisposition? disposition,
+    String? returnCondition,
   }) {
     final gross = salesRate * quantity;
     final discAmt = gross * (discountPercent / 100);
@@ -227,6 +248,8 @@ class SalesDocItem extends Equatable {
       taxPercent: taxPercent,
       taxAmount: taxAmt,
       lineTotal: afterDiscount + taxAmt,
+      disposition: disposition,
+      returnCondition: returnCondition,
     );
   }
 
@@ -248,6 +271,8 @@ class SalesDocItem extends Equatable {
       taxPercent: taxPercent,
       taxAmount: taxAmt,
       lineTotal: afterDiscount + taxAmt,
+      disposition: disposition,
+      returnCondition: returnCondition,
     );
   }
 
@@ -260,6 +285,8 @@ class SalesDocItem extends Equatable {
     double? quantity,
     double? discountPercent,
     double? taxPercent,
+    Object? disposition = const Object(),
+    Object? returnCondition = const Object(),
   }) {
     return SalesDocItem.create(
       id: id == const Object() ? this.id : id as int?,
@@ -270,6 +297,8 @@ class SalesDocItem extends Equatable {
       quantity: quantity ?? this.quantity,
       discountPercent: discountPercent ?? this.discountPercent,
       taxPercent: taxPercent ?? this.taxPercent,
+      disposition: disposition == const Object() ? this.disposition : disposition as ItemDisposition?,
+      returnCondition: returnCondition == const Object() ? this.returnCondition : returnCondition as String?,
     );
   }
 
@@ -286,5 +315,7 @@ class SalesDocItem extends Equatable {
     taxPercent,
     taxAmount,
     lineTotal,
+    disposition,
+    returnCondition,
   ];
 }

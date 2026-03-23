@@ -26,6 +26,7 @@ class DatabaseHelper {
       path,
       version: AppDefaults.dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
       onConfigure: _onConfigure,
     );
   }
@@ -33,6 +34,39 @@ class DatabaseHelper {
   /// Enable foreign-key support.
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
+  }
+
+  /// Handle database schema upgrades.
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      try {
+        await db.execute(
+          'ALTER TABLE sales_documents ADD COLUMN return_reason TEXT',
+        );
+      } catch (_) {}
+      try {
+        await db.execute(
+          'ALTER TABLE sales_documents ADD COLUMN return_to_stock INTEGER NOT NULL DEFAULT 0',
+        );
+      } catch (_) {}
+    }
+    if (oldVersion < 4) {
+      try {
+        await db.execute(
+          'ALTER TABLE sales_documents ADD COLUMN generate_credit_note INTEGER NOT NULL DEFAULT 0',
+        );
+      } catch (_) {}
+      try {
+        await db.execute(
+          'ALTER TABLE sales_document_items ADD COLUMN disposition TEXT',
+        );
+      } catch (_) {}
+      try {
+        await db.execute(
+          'ALTER TABLE sales_document_items ADD COLUMN return_condition TEXT',
+        );
+      } catch (_) {}
+    }
   }
 
   /// Create all tables in their final state.
@@ -138,6 +172,9 @@ class DatabaseHelper {
         delivery_date     TEXT,
         payment_status    TEXT,
         notes             TEXT,
+        return_reason     TEXT,
+        return_to_stock   INTEGER NOT NULL DEFAULT 0,
+        generate_credit_note INTEGER NOT NULL DEFAULT 0,
         created_at        TEXT    NOT NULL,
         FOREIGN KEY (customer_id) REFERENCES customers(id),
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
@@ -159,6 +196,8 @@ class DatabaseHelper {
         tax_percent      REAL    NOT NULL DEFAULT 0.0,
         tax_amount       REAL    NOT NULL DEFAULT 0.0,
         line_total       REAL    NOT NULL,
+        disposition      TEXT,
+        return_condition TEXT,
         FOREIGN KEY (document_id) REFERENCES sales_documents(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id)  REFERENCES products(id)
       )

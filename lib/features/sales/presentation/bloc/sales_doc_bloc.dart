@@ -30,6 +30,11 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     on<UpdateGlobalDiscount>(_onUpdateGlobalDiscount);
     on<UpdateGlobalDiscountAmount>(_onUpdateGlobalDiscountAmount);
     on<UpdateNotes>(_onUpdateNotes);
+    on<UpdateReturnReason>(_onUpdateReturnReason);
+    on<UpdateReturnToStock>(_onUpdateReturnToStock);
+    on<UpdateItemDisposition>(_onUpdateItemDisposition);
+    on<UpdateItemReturnCondition>(_onUpdateItemReturnCondition);
+    on<UpdateGenerateCreditNote>(_onUpdateGenerateCreditNote);
     on<SaveDraft>(_onSaveDraft);
     on<ConfirmDocument>(_onConfirmDocument);
     on<ConvertDocument>(_onConvertDocument);
@@ -263,6 +268,71 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     emit(SalesDocBuilding(currentDoc.copyWith(notes: event.notes)));
   }
 
+  void _onUpdateReturnReason(
+    UpdateReturnReason event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    emit(SalesDocBuilding(currentDoc.copyWith(returnReason: event.reason)));
+  }
+
+  void _onUpdateReturnToStock(
+    UpdateReturnToStock event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    emit(SalesDocBuilding(currentDoc.copyWith(returnToStock: event.returnToStock)));
+  }
+
+  void _onUpdateItemDisposition(
+    UpdateItemDisposition event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+
+    final updatedItems = currentDoc.items.map((item) {
+      if (item.itemCode == event.itemCode) {
+        return item.copyWith(
+          disposition: event.disposition,
+        );
+      }
+      return item;
+    }).toList();
+
+    emit(SalesDocBuilding(currentDoc.copyWith(items: updatedItems)));
+  }
+
+  void _onUpdateItemReturnCondition(
+    UpdateItemReturnCondition event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+
+    final updatedItems = currentDoc.items.map((item) {
+      if (item.itemCode == event.itemCode) {
+        return item.copyWith(
+          returnCondition: event.condition,
+        );
+      }
+      return item;
+    }).toList();
+
+    emit(SalesDocBuilding(currentDoc.copyWith(items: updatedItems)));
+  }
+
+  void _onUpdateGenerateCreditNote(
+    UpdateGenerateCreditNote event,
+    Emitter<SalesDocState> emit,
+  ) {
+    if (state is! SalesDocBuilding) return;
+    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    emit(SalesDocBuilding(currentDoc.copyWith(generateCreditNote: event.generate)));
+  }
+
   Future<void> _onSaveDraft(
     SaveDraft event,
     Emitter<SalesDocState> emit,
@@ -290,6 +360,11 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
 
     if (draft.items.isEmpty) {
       emit(SalesDocError('Cannot confirm empty document.', activeDoc: draft));
+      return;
+    }
+
+    if (draft.docType == DocType.creditNote && draft.returnReason == null) {
+      emit(SalesDocError('Return reason is mandatory for Credit Notes.', activeDoc: draft));
       return;
     }
 

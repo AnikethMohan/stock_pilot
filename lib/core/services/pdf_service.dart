@@ -48,6 +48,8 @@ class PdfService {
       DocType.purchaseOrder => PdfColors.purple900,
       DocType.materialReceipt => PdfColors.teal900,
       DocType.purchaseInvoice => PdfColors.purple900,
+      DocType.creditNote => PdfColors.red900,
+      DocType.deliveryReturn => PdfColors.orange900,
     };
 
     final isDeliveryNote = doc.docType == DocType.deliveryNote;

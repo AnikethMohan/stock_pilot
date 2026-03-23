@@ -281,6 +281,8 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
       DocType.purchaseOrder => Icons.shopping_cart_outlined,
       DocType.materialReceipt => Icons.inventory_2_outlined,
       DocType.purchaseInvoice => Icons.request_quote_outlined,
+      DocType.creditNote => Icons.keyboard_return_outlined,
+      DocType.deliveryReturn => Icons.call_missed_outgoing_outlined,
     };
   }
 
@@ -348,12 +350,16 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
             columns: [
               const DataColumn(label: Text('Item')),
               const DataColumn(label: Text('Qty')),
-              if (!isDeliveryNote) ...[
+              if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
                 const DataColumn(label: Text('Sales Rate')),
                 const DataColumn(label: Text('Disc %')),
                 const DataColumn(label: Text('Disc Amt')),
                 const DataColumn(label: Text('Tax %')),
                 const DataColumn(label: Text('Total')),
+              ],
+              if (doc.docType == DocType.deliveryReturn) ...[
+                const DataColumn(label: Text('Disposition')),
+                const DataColumn(label: Text('Condition')),
               ],
               const DataColumn(label: Text('')),
             ],
@@ -440,7 +446,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                       ),
                     ),
                   ),
-                  if (!isDeliveryNote) ...[
+                  if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
                     DataCell(
                       SizedBox(
                         width: 80,
@@ -566,6 +572,41 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                     ),
                     DataCell(Text(currencyFormat.format(item.lineTotal))),
                   ],
+                  if (doc.docType == DocType.deliveryReturn) ...[
+                    DataCell(
+                      SizedBox(
+                        width: 140,
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<ItemDisposition>(
+                            isExpanded: true,
+                            value: item.disposition ?? ItemDisposition.restock,
+                            items: ItemDisposition.values.map((d) {
+                              return DropdownMenuItem(value: d, child: Text(d.label));
+                            }).toList(),
+                            onChanged: (val) {
+                              context.read<SalesDocBloc>().add(UpdateItemDisposition(itemCode: item.itemCode, disposition: val));
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 120,
+                        child: TextField(
+                          controller: TextEditingController(text: item.returnCondition ?? ''),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            hintText: 'Condition notes',
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (val) {
+                            context.read<SalesDocBloc>().add(UpdateItemReturnCondition(itemCode: item.itemCode, condition: val));
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                   DataCell(
                     IconButton(
                       icon: const Icon(Icons.delete, color: AppTheme.error),
@@ -650,7 +691,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                         },
                       ),
                     ),
-                    if (!isDeliveryNote) ...[
+                    if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
                       const SizedBox(width: 8),
                       // Price
                       Expanded(
@@ -728,9 +769,42 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                         ),
                       ),
                     ],
+                    if (doc.docType == DocType.deliveryReturn) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<ItemDisposition>(
+                          decoration: const InputDecoration(
+                            labelText: 'Disposition',
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          ),
+                          value: item.disposition ?? ItemDisposition.restock,
+                          items: ItemDisposition.values.map((d) {
+                            return DropdownMenuItem(value: d, child: Text(d.label, overflow: TextOverflow.ellipsis));
+                          }).toList(),
+                          onChanged: (val) {
+                            context.read<SalesDocBloc>().add(UpdateItemDisposition(itemCode: item.itemCode, disposition: val));
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: TextEditingController(text: item.returnCondition ?? ''),
+                          decoration: const InputDecoration(
+                            labelText: 'Condition',
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          ),
+                          onSubmitted: (val) {
+                            context.read<SalesDocBloc>().add(UpdateItemReturnCondition(itemCode: item.itemCode, condition: val));
+                          },
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                if (!isDeliveryNote) ...[
+                if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerRight,
@@ -866,8 +940,58 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
             ),
             const Divider(height: 24),
 
+            // Credit Note Fields
+            if (doc.docType == DocType.creditNote) ...[
+              const SizedBox(height: 16),
+              DropdownButtonFormField<ReturnReason>(
+                decoration: const InputDecoration(
+                  labelText: 'Return Reason',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                value: doc.returnReason,
+                items: ReturnReason.values.map((r) {
+                  return DropdownMenuItem(
+                    value: r,
+                    child: Text(r.label),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    context.read<SalesDocBloc>().add(UpdateReturnReason(val));
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Return to Stock'),
+                subtitle: const Text('Increment inventory for returned items'),
+                value: doc.returnToStock,
+                onChanged: (val) {
+                  context.read<SalesDocBloc>().add(UpdateReturnToStock(val));
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+              const Divider(height: 24),
+            ],
+
+            // Delivery Return fields
+            if (doc.docType == DocType.deliveryReturn) ...[
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Generate Credit Note'),
+                subtitle: const Text('Automatically draft a linked credit note'),
+                value: doc.generateCreditNote,
+                onChanged: (val) {
+                  context.read<SalesDocBloc>().add(UpdateGenerateCreditNote(val));
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+              const Divider(height: 24),
+            ],
+
             // Summary Totals (hide for delivery notes)
-            if (!isDeliveryNote) ...[
+            if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
               _buildSummaryRow('Subtotal:', doc.subtotal, currencyFormat),
               const SizedBox(height: 16),
 

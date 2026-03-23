@@ -30,7 +30,9 @@ enum TransactionReason {
   inn('In'),
   out('Out'),
   correction('Correction'),
-  csvImport('CSV Import');
+  csvImport('CSV Import'),
+  customerReturn('Customer Return'),
+  deliveryReturn('Delivery Return');
 
   const TransactionReason(this.label);
   final String label;
@@ -53,7 +55,11 @@ enum DocType {
   // Purchases
   purchaseOrder('purchase_order', 'PO'),
   materialReceipt('material_receipt', 'MR'),
-  purchaseInvoice('purchase_invoice', 'PI');
+  purchaseInvoice('purchase_invoice', 'PI'),
+
+  // Returns
+  creditNote('credit_note', 'CN'),
+  deliveryReturn('delivery_return', 'RTN');
 
   const DocType(this.value, this.prefix);
   final String value;
@@ -66,6 +72,8 @@ enum DocType {
     DocType.purchaseOrder => 'Purchase Order',
     DocType.materialReceipt => 'Material Receipt',
     DocType.purchaseInvoice => 'Purchase Invoice',
+    DocType.creditNote => 'Credit Note',
+    DocType.deliveryReturn => 'Delivery Return',
   };
 
   static DocType fromString(String value) {
@@ -103,6 +111,42 @@ enum DocStatus {
   }
 }
 
+/// Dispositions for returning items.
+enum ItemDisposition {
+  restock('Restock'),
+  damaged('Damaged / Scrap'),
+  returnToSupplier('Return to Supplier');
+
+  const ItemDisposition(this.label);
+  final String label;
+
+  static ItemDisposition fromString(String value) {
+    return ItemDisposition.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => ItemDisposition.restock,
+    );
+  }
+}
+
+/// Reasons for a credit note or return.
+enum ReturnReason {
+  damage('Damage'),
+  pricingError('Pricing Error'),
+  wrongItem('Wrong Item'),
+  goodwill('Goodwill'),
+  other('Other');
+
+  const ReturnReason(this.label);
+  final String label;
+
+  static ReturnReason fromString(String value) {
+    return ReturnReason.values.firstWhere(
+      (e) => e.label.toLowerCase() == value.toLowerCase(),
+      orElse: () => ReturnReason.other,
+    );
+  }
+}
+
 /// Default application settings.
 class AppDefaults {
   AppDefaults._();
@@ -110,7 +154,7 @@ class AppDefaults {
   static const double defaultLowStockThreshold = 10.0;
   static const bool defaultAllowNegativeStock = false;
   static const String dbName = 'stock_pilot.db';
-  static const int dbVersion = 1;
+  static const int dbVersion = 4;
   static const String defaultCurrencyCode = 'INR';
   static const String defaultCustomerName = 'Cash customer';
 }
