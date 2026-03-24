@@ -54,6 +54,10 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
                   _buildFilterChip('Invoices', DocType.invoice),
                   const SizedBox(width: 8),
                   _buildFilterChip('Purchase Orders', DocType.purchaseOrder),
+                  _buildFilterChip(
+                    'Local Purchase Orders',
+                    DocType.localPurchaseOrder,
+                  ),
                   const SizedBox(width: 8),
                   _buildFilterChip(
                     'Material Receipts',
@@ -191,6 +195,11 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
         typeIcon = Icons.keyboard_return_outlined;
         statusColor = isConfirmed ? AppTheme.success : AppTheme.warning;
         break;
+
+      case DocType.localPurchaseOrder:
+        typeIcon = Icons.shopping_cart;
+        statusColor = isConfirmed ? AppTheme.success : AppTheme.warning;
+        break;
     }
 
     return Card(
@@ -222,7 +231,7 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
           ],
         ),
         subtitle: Text(
-          '${doc.docType == DocType.purchaseOrder || doc.docType == DocType.purchaseInvoice || doc.docType == DocType.materialReceipt ? doc.supplier?.name ?? 'No Supplier' : doc.customer?.name ?? 'No Customer'} • ${doc.items.length} items'
+          '${doc.docType == DocType.purchaseOrder || doc.docType == DocType.localPurchaseOrder || doc.docType == DocType.purchaseInvoice || doc.docType == DocType.materialReceipt ? doc.supplier?.name ?? 'No Supplier' : doc.customer?.name ?? 'No Customer'} • ${doc.items.length} items'
           '${doc.docType != DocType.deliveryNote ? ' • ${currencyFormat.format(doc.grandTotal)}' : ''}',
         ),
         trailing: PopupMenuButton<String>(
@@ -286,7 +295,8 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
                   );
                 }
               }
-            } else if (doc.docType == DocType.purchaseOrder) {
+            } else if (doc.docType == DocType.purchaseOrder ||
+                doc.docType == DocType.localPurchaseOrder) {
               items.add(
                 const PopupMenuItem(
                   value: 'to_material_receipt',

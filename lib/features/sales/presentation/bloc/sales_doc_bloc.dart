@@ -43,6 +43,14 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
 
   final SalesRepository _repository;
 
+  SalesDocument? get _activeDoc {
+    final s = state;
+    if (s is SalesDocBuilding) return s.activeDoc;
+    if (s is SalesDocSaving) return s.activeDoc;
+    if (s is SalesDocError) return s.activeDoc;
+    return null;
+  }
+
   Future<void> _onStartNewDocument(
     StartNewDocument event,
     Emitter<SalesDocState> emit,
@@ -70,8 +78,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     SetDocType event,
     Emitter<SalesDocState> emit,
   ) async {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     try {
       final number = await _repository.getNextDocNumber(event.type);
       final updatedDoc = currentDoc.copyWith(
@@ -81,12 +89,13 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
       emit(SalesDocBuilding(updatedDoc));
     } catch (e) {
       emit(SalesDocError(e.toString(), activeDoc: currentDoc));
+      emit(SalesDocBuilding(currentDoc));
     }
   }
 
   void _onAddDocItem(AddDocItem event, Emitter<SalesDocState> emit) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final existingIndex = currentDoc.items.indexWhere(
       (i) => i.itemCode == event.product.itemCode,
@@ -116,8 +125,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
   }
 
   void _onRemoveDocItem(RemoveDocItem event, Emitter<SalesDocState> emit) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final updatedItems = currentDoc.items
         .where((i) => i.itemCode != event.itemCode)
@@ -131,8 +140,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateItemQuantity event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     if (event.quantity <= 0) {
       add(RemoveDocItem(itemCode: event.itemCode));
@@ -151,8 +160,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
   }
 
   void _onUpdateItemPrice(UpdateItemPrice event, Emitter<SalesDocState> emit) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final updatedItems = currentDoc.items.map((item) {
       if (item.itemCode == event.itemCode) {
@@ -169,8 +178,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateItemDiscount event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final updatedItems = currentDoc.items.map((item) {
       if (item.itemCode == event.itemCode) {
@@ -187,8 +196,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateItemDiscountAmount event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final updatedItems = currentDoc.items.map((item) {
       if (item.itemCode == event.itemCode) {
@@ -204,8 +213,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
   }
 
   void _onUpdateItemTax(UpdateItemTax event, Emitter<SalesDocState> emit) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final updatedItems = currentDoc.items.map((item) {
       if (item.itemCode == event.itemCode) {
@@ -219,8 +228,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
   }
 
   void _onSelectCustomer(SelectCustomer event, Emitter<SalesDocState> emit) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     final updatedDoc = currentDoc.copyWith(
       customer: event.customer,
       customerId: event.customer.id,
@@ -229,8 +238,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
   }
 
   void _onSelectSupplier(SelectSupplier event, Emitter<SalesDocState> emit) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     final updatedDoc = currentDoc.copyWith(
       supplier: event.supplier,
       supplierId: event.supplier.id,
@@ -242,8 +251,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateGlobalDiscount event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     final updatedDoc = currentDoc.recalculate(
       newGlobalDiscountPercent: event.discountPercent,
     );
@@ -254,8 +263,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateGlobalDiscountAmount event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     final updatedDoc = currentDoc.recalculate(
       newGlobalDiscount: event.discountAmount,
     );
@@ -263,8 +272,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
   }
 
   void _onUpdateNotes(UpdateNotes event, Emitter<SalesDocState> emit) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     emit(SalesDocBuilding(currentDoc.copyWith(notes: event.notes)));
   }
 
@@ -272,8 +281,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateReturnReason event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     emit(SalesDocBuilding(currentDoc.copyWith(returnReason: event.reason)));
   }
 
@@ -281,8 +290,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateReturnToStock event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     emit(SalesDocBuilding(currentDoc.copyWith(returnToStock: event.returnToStock)));
   }
 
@@ -290,8 +299,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateItemDisposition event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final updatedItems = currentDoc.items.map((item) {
       if (item.itemCode == event.itemCode) {
@@ -309,8 +318,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateItemReturnCondition event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
 
     final updatedItems = currentDoc.items.map((item) {
       if (item.itemCode == event.itemCode) {
@@ -328,8 +337,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     UpdateGenerateCreditNote event,
     Emitter<SalesDocState> emit,
   ) {
-    if (state is! SalesDocBuilding) return;
-    final currentDoc = (state as SalesDocBuilding).activeDoc;
+    final currentDoc = _activeDoc;
+    if (currentDoc == null) return;
     emit(SalesDocBuilding(currentDoc.copyWith(generateCreditNote: event.generate)));
   }
 
@@ -337,8 +346,8 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     SaveDraft event,
     Emitter<SalesDocState> emit,
   ) async {
-    if (state is! SalesDocBuilding) return;
-    final draft = (state as SalesDocBuilding).activeDoc;
+    final draft = _activeDoc;
+    if (draft == null) return;
 
     emit(SalesDocSaving(draft));
 
@@ -355,16 +364,18 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     ConfirmDocument event,
     Emitter<SalesDocState> emit,
   ) async {
-    if (state is! SalesDocBuilding) return;
-    final draft = (state as SalesDocBuilding).activeDoc;
+    final draft = _activeDoc;
+    if (draft == null) return;
 
     if (draft.items.isEmpty) {
       emit(SalesDocError('Cannot confirm empty document.', activeDoc: draft));
+      emit(SalesDocBuilding(draft));
       return;
     }
 
     if (draft.docType == DocType.creditNote && draft.returnReason == null) {
       emit(SalesDocError('Return reason is mandatory for Credit Notes.', activeDoc: draft));
+      emit(SalesDocBuilding(draft));
       return;
     }
 

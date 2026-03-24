@@ -55,6 +55,22 @@ class SettingsPage extends StatelessWidget {
 
             Card(
               child: SwitchListTile(
+                title: const Text('Dark Mode'),
+                subtitle: const Text(
+                  'Switch between light and dark theme.',
+                ),
+                value: data.themeMode == 'dark',
+                activeThumbColor: AppTheme.highlight,
+                onChanged: (v) => context.read<SettingsBloc>().add(
+                  ToggleThemeMode(v ? 'dark' : 'light'),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Card(
+              child: SwitchListTile(
                 title: const Text('Allow Negative Stock'),
                 subtitle: const Text(
                   'If enabled, stock can go below zero for items sold on backorder.',

@@ -524,7 +524,12 @@ class SalesLocalDataSource {
           where: 'id = ? AND doc_type = ?',
           whereArgs: [docToSave.sourceDocId, DocType.purchaseOrder.value],
         );
-        if (poRows.isNotEmpty) {
+        final poRowsLocal = await txn.query(
+          'sales_documents',
+          where: 'id = ? AND doc_type = ?',
+          whereArgs: [docToSave.sourceDocId, DocType.localPurchaseOrder.value],
+        );
+        if (poRows.isNotEmpty || poRowsLocal.isNotEmpty) {
           final poId = docToSave.sourceDocId!;
 
           final poItemsRows = await txn.query(

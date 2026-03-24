@@ -53,7 +53,9 @@ enum DocType {
   invoice('invoice', 'INV'),
 
   // Purchases
+
   purchaseOrder('purchase_order', 'PO'),
+  localPurchaseOrder('local_purchase_order', 'LPO'),
   materialReceipt('material_receipt', 'MR'),
   purchaseInvoice('purchase_invoice', 'PI'),
 
@@ -74,6 +76,7 @@ enum DocType {
     DocType.purchaseInvoice => 'Purchase Invoice',
     DocType.creditNote => 'Credit Note',
     DocType.deliveryReturn => 'Delivery Return',
+    DocType.localPurchaseOrder => 'Local Purchase Order',
   };
 
   static DocType fromString(String value) {
@@ -154,9 +157,10 @@ class AppDefaults {
   static const double defaultLowStockThreshold = 10.0;
   static const bool defaultAllowNegativeStock = false;
   static const String dbName = 'stock_pilot.db';
-  static const int dbVersion = 4;
+  static const int dbVersion = 5;
   static const String defaultCurrencyCode = 'INR';
   static const String defaultCustomerName = 'Cash customer';
+  static const String defaultThemeMode = 'dark';
 }
 
 /// Settings keys used in the settings table.
@@ -166,6 +170,7 @@ class SettingsKeys {
   static const String allowNegativeStock = 'allow_negative_stock';
   static const String defaultLowStockThreshold = 'default_low_stock_threshold';
   static const String defaultCurrency = 'default_currency';
+  static const String themeMode = 'theme_mode';
 
   // Business Info
   static const String businessName = 'business_name';

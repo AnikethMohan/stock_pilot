@@ -167,6 +167,16 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> setDefaultCurrency(String code) =>
       _ds.setSetting(SettingsKeys.defaultCurrency, code);
 
+  @override
+  Future<String> getThemeMode() async {
+    final val = await _ds.getSetting(SettingsKeys.themeMode);
+    return val ?? AppDefaults.defaultThemeMode;
+  }
+
+  @override
+  Future<void> setThemeMode(String mode) =>
+      _ds.setSetting(SettingsKeys.themeMode, mode);
+
   // Business Info
   @override
   Future<String> getBusinessName() async {

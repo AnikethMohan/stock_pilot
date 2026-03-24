@@ -223,21 +223,38 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
     ExportCsv event,
     Emitter<InventoryState> emit,
   ) async {
+    final current = state;
     try {
-      // For export we need ALL products, use a large limit.
-      final products = await _repository.getProducts(limit: 100000, offset: 0);
-      final csvData = CsvService.exportToCsv(products);
-      final productGroups = await _repository.getProductGroups();
+      // For export we need ALL products.
       final totalCount = await _repository.getProductCount();
-      emit(
-        InventoryLoaded(
-          products: products.take(_pageSize).toList(),
-          productGroups: productGroups,
-          csvExportData: csvData,
-          totalProductCount: totalCount,
-          hasMore: products.length > _pageSize,
-        ),
+      final products = await _repository.getProducts(
+        limit: totalCount,
+        offset: 0,
       );
+      final csvData = await CsvService.exportToCsvAsync(products);
+
+      if (current is InventoryLoaded) {
+        emit(
+          InventoryLoaded(
+            products: current.products,
+            productGroups: current.productGroups,
+            csvExportData: csvData,
+            totalProductCount: current.totalProductCount,
+            hasMore: current.hasMore,
+          ),
+        );
+      } else {
+        final productGroups = await _repository.getProductGroups();
+        emit(
+          InventoryLoaded(
+            products: products.take(_pageSize).toList(),
+            productGroups: productGroups,
+            csvExportData: csvData,
+            totalProductCount: totalCount,
+            hasMore: products.length > _pageSize,
+          ),
+        );
+      }
     } catch (e) {
       emit(InventoryError('CSV Export failed: ${e.toString()}'));
     }

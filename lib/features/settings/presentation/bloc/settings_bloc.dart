@@ -39,6 +39,13 @@ class UpdateDefaultCurrency extends SettingsEvent {
   List<Object?> get props => [currencyCode];
 }
 
+class ToggleThemeMode extends SettingsEvent {
+  const ToggleThemeMode(this.themeMode);
+  final String themeMode;
+  @override
+  List<Object?> get props => [themeMode];
+}
+
 class UpdateBusinessInfo extends SettingsEvent {
   const UpdateBusinessInfo({
     this.name,
@@ -75,6 +82,7 @@ class SettingsLoaded extends SettingsState {
     required this.defaultLowStockThreshold,
     required this.currencyCode,
     required this.currencySymbol,
+    this.themeMode = 'dark',
     this.businessName = '',
     this.businessAddress = '',
     this.businessPhone = '',
@@ -85,6 +93,7 @@ class SettingsLoaded extends SettingsState {
   final double defaultLowStockThreshold;
   final String currencyCode;
   final String currencySymbol;
+  final String themeMode;
   final String businessName;
   final String businessAddress;
   final String businessPhone;
@@ -97,6 +106,7 @@ class SettingsLoaded extends SettingsState {
     defaultLowStockThreshold,
     currencyCode,
     currencySymbol,
+    themeMode,
     businessName,
     businessAddress,
     businessPhone,
@@ -122,6 +132,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ToggleAllowNegativeStock>(_onToggleNeg);
     on<UpdateDefaultThreshold>(_onUpdateThreshold);
     on<UpdateDefaultCurrency>(_onUpdateCurrency);
+    on<ToggleThemeMode>(_onToggleTheme);
     on<UpdateBusinessInfo>(_onUpdateBusinessInfo);
   }
 
@@ -133,6 +144,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       final threshold = await _repo.getDefaultLowStockThreshold();
       final code = await _repo.getDefaultCurrency();
       final currency = SupportedCurrency.fromCode(code);
+      final themeMode = await _repo.getThemeMode();
 
       final bName = await _repo.getBusinessName();
       final bAddress = await _repo.getBusinessAddress();
@@ -146,6 +158,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           defaultLowStockThreshold: threshold,
           currencyCode: currency.code,
           currencySymbol: currency.symbol,
+          themeMode: themeMode,
           businessName: bName,
           businessAddress: bAddress,
           businessPhone: bPhone,
@@ -179,6 +192,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     await _repo.setDefaultCurrency(event.currencyCode);
+    add(const LoadSettings());
+  }
+
+  Future<void> _onToggleTheme(
+    ToggleThemeMode event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repo.setThemeMode(event.themeMode);
     add(const LoadSettings());
   }
 

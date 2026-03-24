@@ -45,6 +45,11 @@ class CsvService {
 
   // ─── Export ──────────────────────────────────────────────────────
 
+  /// Convert a list of products to a CSV-formatted string on an isolate.
+  static Future<String> exportToCsvAsync(List<Product> products) {
+    return Isolate.run(() => exportToCsv(products));
+  }
+
   /// Convert a list of products to a CSV-formatted string.
   /// Custom attributes (metadata) are included as extra columns.
   static String exportToCsv(List<Product> products) {

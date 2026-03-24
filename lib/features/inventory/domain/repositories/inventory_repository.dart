@@ -86,6 +86,9 @@ abstract class SettingsRepository {
   Future<String> getDefaultCurrency();
   Future<void> setDefaultCurrency(String code);
 
+  Future<String> getThemeMode();
+  Future<void> setThemeMode(String mode);
+
   // Business Info
   Future<String> getBusinessName();
   Future<void> setBusinessName(String value);

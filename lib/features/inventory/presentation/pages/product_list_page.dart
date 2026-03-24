@@ -12,6 +12,8 @@ import 'package:stock_pilot/core/utils/adaptive_layout.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_event.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_state.dart';
+import 'package:stock_pilot/features/inventory/presentation/bloc/import_bloc.dart';
+import 'package:stock_pilot/features/inventory/presentation/pages/import_history_page.dart';
 import 'package:stock_pilot/features/inventory/presentation/pages/product_form_page.dart';
 import 'package:stock_pilot/features/inventory/presentation/widgets/stock_adjust_dialog.dart';
 import 'package:stock_pilot/features/settings/presentation/bloc/settings_bloc.dart';
@@ -70,7 +72,7 @@ class _ProductListPageState extends State<ProductListPage> {
     final file = File(result.files.first.path!);
     final content = await file.readAsString();
     if (mounted) {
-      context.read<InventoryBloc>().add(ImportCsv(content));
+      context.read<ImportBloc>().add(StartImport(filename: result.files.first.name, content: content));
     }
   }
 
@@ -80,29 +82,52 @@ class _ProductListPageState extends State<ProductListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<InventoryBloc, InventoryState>(
-      listener: (context, state) {
-        if (state is InventoryError) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.message)));
-        }
-        if (state is InventoryLoaded) {
-          if (state.csvImportCount != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Imported ${state.csvImportCount} products.'),
-                backgroundColor: AppTheme.success,
-              ),
-            );
-          }
-          if (state.csvExportData != null) {
-            _saveCsvExport(state.csvExportData!);
-          }
-        }
-      },
-      builder: (context, state) {
-        return Column(
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<InventoryBloc, InventoryState>(
+          listener: (context, state) {
+            if (state is InventoryError) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+            }
+            if (state is InventoryLoaded) {
+              if (state.csvExportData != null) {
+                _saveCsvExport(state.csvExportData!);
+              }
+              // We defer import success UI to ImportBloc now
+            }
+          },
+        ),
+        BlocListener<ImportBloc, ImportState>(
+          listener: (context, state) {
+            if (state is ImportSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Successfully imported ${state.importRecord.totalRows} products.'),
+                  backgroundColor: AppTheme.success,
+                ),
+              );
+              // Refresh inventory list
+              context.read<InventoryBloc>().add(const LoadProducts());
+            } else if (state is ImportReverseSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Import successfully reversed. Inventory refreshed.'),
+                  backgroundColor: AppTheme.success,
+                ),
+              );
+              // Refresh inventory list
+              context.read<InventoryBloc>().add(const LoadProducts());
+            } else if (state is ImportError) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: AppTheme.error));
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<InventoryBloc, InventoryState>(
+        builder: (context, inventoryState) {
+          return BlocBuilder<ImportBloc, ImportState>(
+            builder: (context, importState) {
+              return Column(
           children: [
             // ─── Toolbar ─────────────────────────────────────
             Padding(
@@ -122,6 +147,13 @@ class _ProductListPageState extends State<ProductListPage> {
                         onPressed: _importCsv,
                       ),
                       IconButton(
+                        icon: const Icon(Icons.history),
+                        tooltip: 'Import History',
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportHistoryPage()));
+                        },
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.file_download_outlined),
                         tooltip: 'Export CSV',
                         onPressed: _exportCsv,
@@ -135,16 +167,19 @@ class _ProductListPageState extends State<ProductListPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildFilterBar(context, state),
+                  _buildFilterBar(context, inventoryState),
                 ],
               ),
             ),
 
             // ─── Content ─────────────────────────────────────
-            Expanded(child: _buildContent(context, state)),
+            Expanded(child: _buildContent(context, inventoryState, importState)),
           ],
         );
-      },
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -203,9 +238,9 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Widget _buildContent(BuildContext context, InventoryState state) {
+  Widget _buildContent(BuildContext context, InventoryState state, ImportState importState) {
     // ─── CSV import progress ─────────────────────────────
-    if (state is CsvImporting) {
+    if (importState is ImportProcessing) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
@@ -218,24 +253,16 @@ class _ProductListPageState extends State<ProductListPage> {
                 color: AppTheme.highlight,
               ),
               const SizedBox(height: 24),
-              Text(state.stage, style: Theme.of(context).textTheme.titleMedium),
+              Text(importState.message, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 16),
-              SizedBox(
+              const SizedBox(
                 width: 300,
                 child: LinearProgressIndicator(
-                  value: state.total > 0 ? state.progress : null,
                   minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
-                  backgroundColor: Colors.white.withValues(alpha: 0.1),
-                  valueColor: const AlwaysStoppedAnimation(AppTheme.highlight),
+                  backgroundColor: Colors.white10,
+                  valueColor: AlwaysStoppedAnimation(AppTheme.highlight),
                 ),
               ),
-              const SizedBox(height: 12),
-              if (state.total > 0)
-                Text(
-                  '${state.processed} / ${state.total} products',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
             ],
           ),
         ),

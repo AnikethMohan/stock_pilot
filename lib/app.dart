@@ -11,6 +11,9 @@ import 'package:stock_pilot/features/inventory/data/repositories/inventory_repos
 import 'package:stock_pilot/features/inventory/domain/repositories/inventory_repository.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_event.dart';
+import 'package:stock_pilot/features/inventory/data/repositories/stock_repository_impl.dart';
+import 'package:stock_pilot/features/inventory/domain/repositories/stock_repository.dart';
+import 'package:stock_pilot/features/inventory/presentation/bloc/import_bloc.dart';
 import 'package:stock_pilot/features/sales/data/datasources/sales_local_datasource.dart';
 import 'package:stock_pilot/features/sales/data/repositories/sales_repository_impl.dart';
 import 'package:stock_pilot/features/sales/domain/repositories/sales_repository.dart';
@@ -33,11 +36,13 @@ class StockPilotApp extends StatelessWidget {
 
     final salesDataSource = SalesLocalDataSource();
     final salesRepo = SalesRepositoryImpl(dataSource: salesDataSource);
+    final stockRepo = StockRepositoryImpl();
 
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<InventoryRepository>.value(value: inventoryRepo),
         RepositoryProvider<SalesRepository>.value(value: salesRepo),
+        RepositoryProvider<StockRepository>.value(value: stockRepo),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -64,19 +69,31 @@ class StockPilotApp extends StatelessWidget {
                   ..add(const LoadSettings()),
           ),
           BlocProvider(create: (_) => SalesDocBloc(repository: salesRepo)),
+          BlocProvider(create: (_) => ImportBloc(repository: stockRepo)),
         ],
-        child: MaterialApp(
-          title: 'Stock Pilot',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
-          home: LayoutBuilder(
-            builder: (context, constraints) {
-              if (AdaptiveLayout.isWideScreen(constraints.maxWidth)) {
-                return const DesktopShell();
-              }
-              return const MobileShell();
-            },
-          ),
+        child: BlocBuilder<SettingsBloc, SettingsState>(
+          builder: (context, state) {
+            ThemeMode mode = ThemeMode.dark;
+            if (state is SettingsLoaded) {
+              mode = state.themeMode == 'light' ? ThemeMode.light : ThemeMode.dark;
+            }
+
+            return MaterialApp(
+              title: 'Stock Pilot',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: mode,
+              home: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (AdaptiveLayout.isWideScreen(constraints.maxWidth)) {
+                    return const DesktopShell();
+                  }
+                  return const MobileShell();
+                },
+              ),
+            );
+          },
         ),
       ),
     );

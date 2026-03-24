@@ -38,12 +38,19 @@ class _MobileShellState extends State<MobileShell> {
       key: ValueKey('deliveryReturn'),
       docType: DocType.deliveryReturn,
     ),
-    CustomSeparatePage(key: ValueKey('creditNote'), docType: DocType.creditNote),
+    CustomSeparatePage(
+      key: ValueKey('creditNote'),
+      docType: DocType.creditNote,
+    ),
 
     // Purchases
     CustomSeparatePage(
       key: ValueKey('purchaseOrder'),
       docType: DocType.purchaseOrder,
+    ),
+    CustomSeparatePage(
+      key: ValueKey('localPurchaseOrder'),
+      docType: DocType.localPurchaseOrder,
     ),
     CustomSeparatePage(
       key: ValueKey('materialReceipt'),

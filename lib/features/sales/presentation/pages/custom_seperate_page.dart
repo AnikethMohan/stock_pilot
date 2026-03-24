@@ -156,6 +156,10 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
         typeIcon = Icons.keyboard_return_outlined;
         statusColor = isConfirmed ? AppTheme.success : AppTheme.warning;
         break;
+      case DocType.localPurchaseOrder:
+        typeIcon = Icons.shopping_cart;
+        statusColor = isConfirmed ? AppTheme.success : AppTheme.warning;
+        break;
     }
 
     return Card(
@@ -187,7 +191,7 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
           ],
         ),
         subtitle: Text(
-          '${doc.docType == DocType.purchaseOrder || doc.docType == DocType.purchaseInvoice || doc.docType == DocType.materialReceipt ? doc.supplier?.name ?? 'No Supplier' : doc.customer?.name ?? 'No Customer'} • ${doc.items.length} items'
+          '${doc.docType == DocType.purchaseOrder || doc.docType == DocType.localPurchaseOrder || doc.docType == DocType.purchaseInvoice || doc.docType == DocType.materialReceipt ? doc.supplier?.name ?? 'No Supplier' : doc.customer?.name ?? 'No Customer'} • ${doc.items.length} items'
           '${doc.docType != DocType.deliveryNote ? ' • ${currencyFormat.format(doc.grandTotal)}' : ''}',
         ),
         trailing: PopupMenuButton<String>(
@@ -251,7 +255,8 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
                   );
                 }
               }
-            } else if (doc.docType == DocType.purchaseOrder) {
+            } else if (doc.docType == DocType.purchaseOrder ||
+                doc.docType == DocType.localPurchaseOrder) {
               items.add(
                 const PopupMenuItem(
                   value: 'to_material_receipt',

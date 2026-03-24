@@ -283,6 +283,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
       DocType.purchaseInvoice => Icons.request_quote_outlined,
       DocType.creditNote => Icons.keyboard_return_outlined,
       DocType.deliveryReturn => Icons.call_missed_outgoing_outlined,
+      DocType.localPurchaseOrder => Icons.shopping_cart_outlined,
     };
   }
 
@@ -446,7 +447,8 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                       ),
                     ),
                   ),
-                  if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
+                  if (!isDeliveryNote &&
+                      doc.docType != DocType.deliveryReturn) ...[
                     DataCell(
                       SizedBox(
                         width: 80,
@@ -581,10 +583,18 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             isExpanded: true,
                             value: item.disposition ?? ItemDisposition.restock,
                             items: ItemDisposition.values.map((d) {
-                              return DropdownMenuItem(value: d, child: Text(d.label));
+                              return DropdownMenuItem(
+                                value: d,
+                                child: Text(d.label),
+                              );
                             }).toList(),
                             onChanged: (val) {
-                              context.read<SalesDocBloc>().add(UpdateItemDisposition(itemCode: item.itemCode, disposition: val));
+                              context.read<SalesDocBloc>().add(
+                                UpdateItemDisposition(
+                                  itemCode: item.itemCode,
+                                  disposition: val,
+                                ),
+                              );
                             },
                           ),
                         ),
@@ -594,14 +604,21 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                       SizedBox(
                         width: 120,
                         child: TextField(
-                          controller: TextEditingController(text: item.returnCondition ?? ''),
+                          controller: TextEditingController(
+                            text: item.returnCondition ?? '',
+                          ),
                           decoration: const InputDecoration(
                             isDense: true,
                             hintText: 'Condition notes',
                             border: InputBorder.none,
                           ),
                           onSubmitted: (val) {
-                            context.read<SalesDocBloc>().add(UpdateItemReturnCondition(itemCode: item.itemCode, condition: val));
+                            context.read<SalesDocBloc>().add(
+                              UpdateItemReturnCondition(
+                                itemCode: item.itemCode,
+                                condition: val,
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -691,7 +708,8 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                         },
                       ),
                     ),
-                    if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
+                    if (!isDeliveryNote &&
+                        doc.docType != DocType.deliveryReturn) ...[
                       const SizedBox(width: 8),
                       // Price
                       Expanded(
@@ -776,35 +794,60 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                           decoration: const InputDecoration(
                             labelText: 'Disposition',
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
                           ),
                           value: item.disposition ?? ItemDisposition.restock,
                           items: ItemDisposition.values.map((d) {
-                            return DropdownMenuItem(value: d, child: Text(d.label, overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(
+                              value: d,
+                              child: Text(
+                                d.label,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
                           }).toList(),
                           onChanged: (val) {
-                            context.read<SalesDocBloc>().add(UpdateItemDisposition(itemCode: item.itemCode, disposition: val));
+                            context.read<SalesDocBloc>().add(
+                              UpdateItemDisposition(
+                                itemCode: item.itemCode,
+                                disposition: val,
+                              ),
+                            );
                           },
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
-                          controller: TextEditingController(text: item.returnCondition ?? ''),
+                          controller: TextEditingController(
+                            text: item.returnCondition ?? '',
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Condition',
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
                           ),
                           onSubmitted: (val) {
-                            context.read<SalesDocBloc>().add(UpdateItemReturnCondition(itemCode: item.itemCode, condition: val));
+                            context.read<SalesDocBloc>().add(
+                              UpdateItemReturnCondition(
+                                itemCode: item.itemCode,
+                                condition: val,
+                              ),
+                            );
                           },
                         ),
                       ),
                     ],
                   ],
                 ),
-                if (!isDeliveryNote && doc.docType != DocType.deliveryReturn) ...[
+                if (!isDeliveryNote &&
+                    doc.docType != DocType.deliveryReturn) ...[
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerRight,
@@ -898,6 +941,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
               builder: (context) {
                 final isPurchase =
                     doc.docType == DocType.purchaseOrder ||
+                    doc.docType == DocType.localPurchaseOrder ||
                     doc.docType == DocType.materialReceipt ||
                     doc.docType == DocType.purchaseInvoice;
                 return ListTile(
@@ -951,10 +995,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                 ),
                 value: doc.returnReason,
                 items: ReturnReason.values.map((r) {
-                  return DropdownMenuItem(
-                    value: r,
-                    child: Text(r.label),
-                  );
+                  return DropdownMenuItem(value: r, child: Text(r.label));
                 }).toList(),
                 onChanged: (val) {
                   if (val != null) {
@@ -980,10 +1021,14 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Generate Credit Note'),
-                subtitle: const Text('Automatically draft a linked credit note'),
+                subtitle: const Text(
+                  'Automatically draft a linked credit note',
+                ),
                 value: doc.generateCreditNote,
                 onChanged: (val) {
-                  context.read<SalesDocBloc>().add(UpdateGenerateCreditNote(val));
+                  context.read<SalesDocBloc>().add(
+                    UpdateGenerateCreditNote(val),
+                  );
                 },
                 contentPadding: EdgeInsets.zero,
               ),
@@ -1089,6 +1134,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             final isMR = doc.docType == DocType.materialReceipt;
                             final isPurchase =
                                 doc.docType == DocType.purchaseOrder ||
+                                doc.docType == DocType.localPurchaseOrder ||
                                 doc.docType == DocType.materialReceipt ||
                                 doc.docType == DocType.purchaseInvoice;
 
@@ -1107,6 +1153,16 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                                     isPurchase
                                         ? 'Please select a supplier for material receipt'
                                         : 'Please select a customer for delivery note',
+                                  ),
+                                  backgroundColor: AppTheme.error,
+                                ),
+                              );
+                            } else if (doc.docType == DocType.creditNote &&
+                                doc.returnReason == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please select a return reason for Credit Note',
                                   ),
                                   backgroundColor: AppTheme.error,
                                 ),
@@ -1156,6 +1212,7 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                             final isMR = doc.docType == DocType.materialReceipt;
                             final isPurchase =
                                 doc.docType == DocType.purchaseOrder ||
+                                doc.docType == DocType.localPurchaseOrder ||
                                 doc.docType == DocType.materialReceipt ||
                                 doc.docType == DocType.purchaseInvoice;
 
@@ -1174,6 +1231,16 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
                                     isPurchase
                                         ? 'Please select a supplier for material receipt'
                                         : 'Please select a customer for delivery note',
+                                  ),
+                                  backgroundColor: AppTheme.error,
+                                ),
+                              );
+                            } else if (doc.docType == DocType.creditNote &&
+                                doc.returnReason == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please select a return reason for Credit Note',
                                   ),
                                   backgroundColor: AppTheme.error,
                                 ),

@@ -67,6 +67,33 @@ class DatabaseHelper {
         );
       } catch (_) {}
     }
+    if (oldVersion < 5) {
+      try {
+        await db.execute('''
+          CREATE TABLE inventory_imports (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename   TEXT    NOT NULL,
+            date       TEXT    NOT NULL,
+            total_rows INTEGER NOT NULL
+          )
+        ''');
+      } catch (_) {}
+      
+      try {
+        await db.execute('''
+          CREATE TABLE stock_movements (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id     INTEGER NOT NULL,
+            quantity_delta REAL    NOT NULL,
+            movement_type  TEXT    NOT NULL,
+            reference_id   TEXT,
+            timestamp      TEXT    NOT NULL,
+            notes          TEXT,
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+          )
+        ''');
+      } catch (_) {}
+    }
   }
 
   /// Create all tables in their final state.
@@ -208,6 +235,29 @@ class DatabaseHelper {
       CREATE TABLE settings (
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL
+      )
+    ''');
+
+    // ─── Bank Ledger (Stock Movements & Imports) ───────────────────
+    await db.execute('''
+      CREATE TABLE inventory_imports (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename   TEXT    NOT NULL,
+        date       TEXT    NOT NULL,
+        total_rows INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE stock_movements (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id     INTEGER NOT NULL,
+        quantity_delta REAL    NOT NULL,
+        movement_type  TEXT    NOT NULL,
+        reference_id   TEXT,
+        timestamp      TEXT    NOT NULL,
+        notes          TEXT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
       )
     ''');
 
