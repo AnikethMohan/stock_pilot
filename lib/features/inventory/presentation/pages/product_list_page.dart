@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stock_pilot/core/theme/app_theme.dart';
 import 'package:stock_pilot/core/utils/adaptive_layout.dart';
+import 'package:stock_pilot/features/inventory/domain/entities/product.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_event.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_state.dart';
@@ -19,7 +20,8 @@ import 'package:stock_pilot/features/inventory/presentation/widgets/stock_adjust
 import 'package:stock_pilot/features/settings/presentation/bloc/settings_bloc.dart';
 
 class ProductListPage extends StatefulWidget {
-  const ProductListPage({super.key});
+  const ProductListPage({super.key, this.isSelectionMode = false});
+  final bool isSelectionMode;
 
   @override
   State<ProductListPage> createState() => _ProductListPageState();
@@ -30,6 +32,7 @@ class _ProductListPageState extends State<ProductListPage> {
   final _scrollController = ScrollController();
   String? _selectedProductGroup;
   bool _lowStockOnly = false;
+  final Set<Product> _selectedProducts = {};
 
   @override
   void initState() {
@@ -72,7 +75,9 @@ class _ProductListPageState extends State<ProductListPage> {
     final file = File(result.files.first.path!);
     final content = await file.readAsString();
     if (mounted) {
-      context.read<ImportBloc>().add(StartImport(filename: result.files.first.name, content: content));
+      context.read<ImportBloc>().add(
+        StartImport(filename: result.files.first.name, content: content),
+      );
     }
   }
 
@@ -82,12 +87,14 @@ class _ProductListPageState extends State<ProductListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocListener(
+    final content = MultiBlocListener(
       listeners: [
         BlocListener<InventoryBloc, InventoryState>(
           listener: (context, state) {
             if (state is InventoryError) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(state.message)));
             }
             if (state is InventoryLoaded) {
               if (state.csvExportData != null) {
@@ -102,7 +109,9 @@ class _ProductListPageState extends State<ProductListPage> {
             if (state is ImportSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Successfully imported ${state.importRecord.totalRows} products.'),
+                  content: Text(
+                    'Successfully imported ${state.importRecord.totalRows} products.',
+                  ),
                   backgroundColor: AppTheme.success,
                 ),
               );
@@ -111,14 +120,21 @@ class _ProductListPageState extends State<ProductListPage> {
             } else if (state is ImportReverseSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Import successfully reversed. Inventory refreshed.'),
+                  content: Text(
+                    'Import successfully reversed. Inventory refreshed.',
+                  ),
                   backgroundColor: AppTheme.success,
                 ),
               );
               // Refresh inventory list
               context.read<InventoryBloc>().add(const LoadProducts());
             } else if (state is ImportError) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: AppTheme.error));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: AppTheme.error,
+                ),
+              );
             }
           },
         ),
@@ -128,59 +144,95 @@ class _ProductListPageState extends State<ProductListPage> {
           return BlocBuilder<ImportBloc, ImportState>(
             builder: (context, importState) {
               return Column(
-          children: [
-            // ─── Toolbar ─────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Column(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Inventory',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.file_upload_outlined),
-                        tooltip: 'Import CSV',
-                        onPressed: _importCsv,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.history),
-                        tooltip: 'Import History',
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportHistoryPage()));
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.file_download_outlined),
-                        tooltip: 'Export CSV',
-                        onPressed: _exportCsv,
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: () => _openForm(context),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Add Product'),
-                      ),
-                    ],
+                  // ─── Toolbar ─────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Column(
+                      children: [
+                        if (!widget.isSelectionMode)
+                          Row(
+                            children: [
+                              Text(
+                                'Inventory',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineMedium,
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                icon: const Icon(Icons.file_upload_outlined),
+                                tooltip: 'Import CSV',
+                                onPressed: _importCsv,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.history),
+                                tooltip: 'Import History',
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const ImportHistoryPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.file_download_outlined),
+                                tooltip: 'Export CSV',
+                                onPressed: _exportCsv,
+                              ),
+                              const SizedBox(width: 8),
+                              FilledButton.icon(
+                                onPressed: () => _openForm(context),
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('Add Product'),
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 12),
+                        _buildFilterBar(context, inventoryState),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildFilterBar(context, inventoryState),
-                ],
-              ),
-            ),
 
-            // ─── Content ─────────────────────────────────────
-            Expanded(child: _buildContent(context, inventoryState, importState)),
-          ],
-        );
+                  // ─── Content ─────────────────────────────────────
+                  Expanded(
+                    child: _buildContent(context, inventoryState, importState),
+                  ),
+                ],
+              );
             },
           );
         },
       ),
     );
+
+    if (widget.isSelectionMode) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Select Products'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            if (_selectedProducts.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      Navigator.pop(context, _selectedProducts.toList()),
+                  icon: const Icon(Icons.check),
+                  label: Text('Add ${_selectedProducts.length}'),
+                ),
+              ),
+          ],
+        ),
+        body: content,
+      );
+    }
+    return content;
   }
 
   Widget _buildFilterBar(BuildContext context, InventoryState state) {
@@ -238,7 +290,11 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Widget _buildContent(BuildContext context, InventoryState state, ImportState importState) {
+  Widget _buildContent(
+    BuildContext context,
+    InventoryState state,
+    ImportState importState,
+  ) {
     // ─── CSV import progress ─────────────────────────────
     if (importState is ImportProcessing) {
       return Center(
@@ -253,7 +309,10 @@ class _ProductListPageState extends State<ProductListPage> {
                 color: AppTheme.highlight,
               ),
               const SizedBox(height: 24),
-              Text(importState.message, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                importState.message,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 16),
               const SizedBox(
                 width: 300,
@@ -322,20 +381,33 @@ class _ProductListPageState extends State<ProductListPage> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
+              showCheckboxColumn: widget.isSelectionMode,
               dataRowMaxHeight: 70,
-              columns: const [
+              columns: [
                 DataColumn(label: Text('Image')),
                 DataColumn(label: Text('Item Code')),
                 DataColumn(label: Text('Name')),
                 DataColumn(label: Text('Description')),
                 DataColumn(label: Text('Qty'), numeric: true),
                 DataColumn(label: Text('Sales Rate'), numeric: true),
-                DataColumn(label: Text('Value'), numeric: true),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Actions')),
+                const DataColumn(label: Text('Value'), numeric: true),
+                const DataColumn(label: Text('Status')),
+                if (!widget.isSelectionMode) DataColumn(label: Text('Actions')),
               ],
               rows: state.products.map((p) {
                 return DataRow(
+                  selected: _selectedProducts.contains(p),
+                  onSelectChanged: widget.isSelectionMode
+                      ? (selected) {
+                          setState(() {
+                            if (selected == true) {
+                              _selectedProducts.add(p);
+                            } else {
+                              _selectedProducts.remove(p);
+                            }
+                          });
+                        }
+                      : null,
                   cells: [
                     DataCell(
                       ClipRRect(
@@ -391,37 +463,38 @@ class _ProductListPageState extends State<ProductListPage> {
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.add_circle_outline,
-                              size: 20,
+                    if (!widget.isSelectionMode)
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                size: 20,
+                              ),
+                              tooltip: 'Adjust Stock',
+                              onPressed: () =>
+                                  _showStockDialog(context, p.id!, p.itemCode),
                             ),
-                            tooltip: 'Adjust Stock',
-                            onPressed: () =>
-                                _showStockDialog(context, p.id!, p.itemCode),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 20),
-                            tooltip: 'Edit',
-                            onPressed: () => _openForm(context, product: p),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.delete_outline,
-                              size: 20,
-                              color: AppTheme.error,
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 20),
+                              tooltip: 'Edit',
+                              onPressed: () => _openForm(context, product: p),
                             ),
-                            tooltip: 'Delete',
-                            onPressed: () =>
-                                _confirmDelete(context, p.id!, p.itemName),
-                          ),
-                        ],
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                size: 20,
+                                color: AppTheme.error,
+                              ),
+                              tooltip: 'Delete',
+                              onPressed: () =>
+                                  _confirmDelete(context, p.id!, p.itemName),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 );
               }).toList(),
@@ -480,19 +553,42 @@ class _ProductListPageState extends State<ProductListPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            leading: ClipRRect(
-              borderRadius: BorderRadiusGeometry.circular(10),
-              child: SizedBox(
-                height: 40,
-                width: 40,
-
-                child: buildImageView(
-                  p.image,
-                  fit: BoxFit.contain,
-                  errorIconSize: 20,
-                ),
-              ),
-            ),
+            onTap: widget.isSelectionMode
+                ? () {
+                    setState(() {
+                      if (_selectedProducts.contains(p)) {
+                        _selectedProducts.remove(p);
+                      } else {
+                        _selectedProducts.add(p);
+                      }
+                    });
+                  }
+                : null,
+            leading: widget.isSelectionMode
+                ? Checkbox(
+                    value: _selectedProducts.contains(p),
+                    onChanged: (v) {
+                      setState(() {
+                        if (v == true) {
+                          _selectedProducts.add(p);
+                        } else {
+                          _selectedProducts.remove(p);
+                        }
+                      });
+                    },
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadiusGeometry.circular(10),
+                    child: SizedBox(
+                      height: 40,
+                      width: 40,
+                      child: buildImageView(
+                        p.image,
+                        fit: BoxFit.contain,
+                        errorIconSize: 20,
+                      ),
+                    ),
+                  ),
             title: Text(
               p.itemName,
               style: const TextStyle(fontWeight: FontWeight.w600),
@@ -518,23 +614,27 @@ class _ProductListPageState extends State<ProductListPage> {
                     ),
                   ],
                 ),
-                PopupMenuButton<String>(
-                  onSelected: (v) {
-                    switch (v) {
-                      case 'adjust':
-                        _showStockDialog(context, p.id!, p.itemCode);
-                      case 'edit':
-                        _openForm(context, product: p);
-                      case 'delete':
-                        _confirmDelete(context, p.id!, p.itemName);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'adjust', child: Text('Adjust Stock')),
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
-                ),
+                if (!widget.isSelectionMode)
+                  PopupMenuButton<String>(
+                    onSelected: (v) {
+                      switch (v) {
+                        case 'adjust':
+                          _showStockDialog(context, p.id!, p.itemCode);
+                        case 'edit':
+                          _openForm(context, product: p);
+                        case 'delete':
+                          _confirmDelete(context, p.id!, p.itemName);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'adjust',
+                        child: Text('Adjust Stock'),
+                      ),
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
+                  ),
               ],
             ),
           ),

@@ -9,9 +9,9 @@ import 'package:stock_pilot/core/constants/app_constants.dart';
 import 'package:stock_pilot/core/theme/app_theme.dart';
 import 'package:stock_pilot/core/utils/adaptive_layout.dart';
 import 'package:stock_pilot/features/inventory/domain/entities/product.dart';
-import 'package:stock_pilot/features/inventory/domain/repositories/inventory_repository.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:stock_pilot/features/inventory/presentation/bloc/inventory_event.dart';
+import 'package:stock_pilot/features/inventory/presentation/pages/product_list_page.dart';
 import 'package:stock_pilot/features/purchases/domain/entities/supplier.dart';
 import 'package:stock_pilot/features/purchases/presentation/pages/supplier_list_page.dart';
 import 'package:stock_pilot/features/sales/domain/entities/customer.dart';
@@ -33,7 +33,6 @@ class SalesDocBuilderPage extends StatefulWidget {
 }
 
 class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
-  TextEditingController? _autoCompleteController;
   final _globalDiscPctController = TextEditingController();
   final _globalDiscAmtController = TextEditingController();
   final _globalDiscPctFocus = FocusNode();
@@ -290,40 +289,33 @@ class _SalesDocBuilderPageState extends State<SalesDocBuilderPage> {
   // ─── Product Search ──────────────────────────────────────────────
 
   Widget _buildProductSearch(SalesDocument doc) {
-    return Autocomplete<Product>(
-      optionsBuilder: (TextEditingValue textEditingValue) async {
-        if (textEditingValue.text.isEmpty) {
-          return const Iterable<Product>.empty();
-        }
-        try {
-          final repo = context.read<InventoryRepository>();
-          final products = await repo.getProducts(
-            searchQuery: textEditingValue.text,
-            limit: 20,
-          );
-          return products;
-        } catch (_) {
-          return const Iterable<Product>.empty();
-        }
-      },
-      displayStringForOption: (Product option) =>
-          '${option.itemName} (${option.itemCode})',
-      onSelected: (Product selection) {
-        context.read<SalesDocBloc>().add(AddDocItem(product: selection));
-        _autoCompleteController?.clear();
-      },
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        _autoCompleteController = controller;
-        return TextField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: const InputDecoration(
-            labelText: 'Search Product by Name or Item Code',
-            prefixIcon: Icon(Icons.search),
+    return InkWell(
+      onTap: () async {
+        final products = await Navigator.push<List<Product>>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ProductListPage(isSelectionMode: true),
           ),
-          onSubmitted: (_) => onFieldSubmitted(),
         );
+        if (products != null && products.isNotEmpty && mounted) {
+          final bloc = context.read<SalesDocBloc>();
+          for (final p in products) {
+            bloc.add(AddDocItem(product: p));
+          }
+        }
       },
+      child: IgnorePointer(
+        child: TextField(
+          readOnly: true,
+          decoration: InputDecoration(
+            labelText: 'Search Product by Name or Item Code',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: const Icon(Icons.open_in_new, size: 20),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            filled: true,
+          ),
+        ),
+      ),
     );
   }
 
