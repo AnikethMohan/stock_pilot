@@ -28,8 +28,9 @@ class StockRepositoryImpl implements StockRepository {
         where: 'id = ?',
         whereArgs: [productId],
       );
-      if (res.isEmpty)
+      if (res.isEmpty) {
         throw const DatabaseFailure('Product not found for updateQuantity');
+      }
 
       final currentQty = (res.first['quantity_on_hand'] as num).toDouble();
       final newQty = currentQty + delta;
@@ -104,22 +105,28 @@ class StockRepositoryImpl implements StockRepository {
 
       final batch = txn.batch();
 
-      // Because we need the *current* DB stock to calculate Delta, we can query it inside the loop,
-      // or we can pre-fetch all matching product codes in one query for faster resolution.
-      final itemCodes = products.map((e) => "'${e.itemCode}'").join(',');
-
-      // Prevent SQL Syntax exception if string is too long or empty
-      final currentProductsRaw = await txn.rawQuery(
-        'SELECT id, item_code, quantity_on_hand FROM products WHERE item_code IN ($itemCodes)',
-      );
-
-      final existingProductsMap = {
-        for (final row in currentProductsRaw)
-          row['item_code'] as String: {
+      final existingProductsMap = <String, Map<String, dynamic>>{};
+      const queryChunkSize = 500;
+      for (var i = 0; i < products.length; i += queryChunkSize) {
+        final chunk = products.sublist(
+          i,
+          i + queryChunkSize > products.length
+              ? products.length
+              : i + queryChunkSize,
+        );
+        final itemCodeList = chunk.map((e) => e.itemCode).toList();
+        final placeholders = List.filled(itemCodeList.length, '?').join(',');
+        final currentProductsRaw = await txn.rawQuery(
+          'SELECT id, item_code, quantity_on_hand FROM products WHERE item_code IN ($placeholders)',
+          itemCodeList,
+        );
+        for (final row in currentProductsRaw) {
+          existingProductsMap[row['item_code'] as String] = {
             'id': row['id'] as int,
             'qty': (row['quantity_on_hand'] as num).toDouble(),
-          },
-      };
+          };
+        }
+      }
 
       for (final p in products) {
         final existingInfo = existingProductsMap[p.itemCode];
@@ -145,30 +152,39 @@ class StockRepositoryImpl implements StockRepository {
 
           if (p.itemName.isNotEmpty) updateMap['item_name'] = p.itemName;
           if (p.brand.isNotEmpty) updateMap['brand'] = p.brand;
-          if (p.productGroup != null && p.productGroup!.isNotEmpty)
+          if (p.productGroup != null && p.productGroup!.isNotEmpty) {
             updateMap['product_group'] = p.productGroup;
-          if (p.description.isNotEmpty)
+          }
+          if (p.description.isNotEmpty) {
             updateMap['description'] = p.description;
+          }
           if (p.detailedDescription != null &&
-              p.detailedDescription!.isNotEmpty)
+              p.detailedDescription!.isNotEmpty) {
             updateMap['detailed_description'] = p.detailedDescription;
+          }
           if (p.salesRate > 0) updateMap['sales_rate'] = p.salesRate;
           if (p.costPrice > 0) updateMap['cost_price'] = p.costPrice;
           if (p.purchaseRate > 0) updateMap['purchase_rate'] = p.purchaseRate;
-          if (p.wholesalePrice > 0)
+          if (p.wholesalePrice > 0) {
             updateMap['wholesale_price'] = p.wholesalePrice;
+          }
           if (p.mrp > 0) updateMap['mrp'] = p.mrp;
-          if (p.profitPercentage > 0)
+          if (p.profitPercentage > 0) {
             updateMap['profit_percentage'] = p.profitPercentage;
-          if (p.minimumSaleRate > 0)
+          }
+          if (p.minimumSaleRate > 0) {
             updateMap['minimum_sale_rate'] = p.minimumSaleRate;
-          if (p.addinPartNumber1.isNotEmpty)
+          }
+          if (p.addinPartNumber1.isNotEmpty) {
             updateMap['addin_part_number_1'] = p.addinPartNumber1;
-          if (p.addinPartNumber2.isNotEmpty)
+          }
+          if (p.addinPartNumber2.isNotEmpty) {
             updateMap['addin_part_number_2'] = p.addinPartNumber2;
+          }
           if (p.image.isNotEmpty) updateMap['image'] = p.image;
-          if (p.otherLanguage.isNotEmpty)
+          if (p.otherLanguage.isNotEmpty) {
             updateMap['other_language'] = p.otherLanguage;
+          }
 
           batch.update(
             'products',
@@ -176,6 +192,9 @@ class StockRepositoryImpl implements StockRepository {
             where: 'id = ?',
             whereArgs: [pId],
           );
+
+          // Update our local map to account for the new quantity for subsequent rows in this CSV.
+          existingProductsMap[p.itemCode]!['qty'] = newQty;
 
           if (delta != 0) {
             batch.insert(
@@ -226,6 +245,12 @@ class StockRepositoryImpl implements StockRepository {
             'updated_at': DateTime.now().toIso8601String(),
           };
           final newProductId = await txn.insert('products', insertMap);
+
+          // Add to our map so subsequent rows in this CSV for the same item_code will update instead of insert.
+          existingProductsMap[p.itemCode] = {
+            'id': newProductId,
+            'qty': p.quantityOnHand,
+          };
 
           if (delta != 0) {
             await txn.insert(

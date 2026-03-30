@@ -51,6 +51,13 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     return null;
   }
 
+  List<SalesDocument>? get _currentDocuments {
+    final s = state;
+    if (s is SalesDocListLoaded) return s.documents;
+    if (s is SalesDocError) return s.documents;
+    return null;
+  }
+
   Future<void> _onStartNewDocument(
     StartNewDocument event,
     Emitter<SalesDocState> emit,
@@ -399,6 +406,7 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     ConvertDocument event,
     Emitter<SalesDocState> emit,
   ) async {
+    final currentDocs = _currentDocuments;
     emit(const SalesDocLoading());
     try {
       final converted = await _repository.convertDocument(
@@ -408,7 +416,7 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
       emit(SalesDocBuilding(converted));
     } catch (e) {
       log('$e');
-      emit(SalesDocError('Failed to convert document: $e'));
+      emit(SalesDocError('Failed to convert document: $e', documents: currentDocs));
     }
   }
 

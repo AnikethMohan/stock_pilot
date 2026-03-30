@@ -68,10 +68,11 @@ class SalesDocListLoaded extends SalesDocState {
 
 /// Error state.
 class SalesDocError extends SalesDocState {
-  const SalesDocError(this.message, {this.activeDoc});
+  const SalesDocError(this.message, {this.activeDoc, this.documents});
   final String message;
   final SalesDocument? activeDoc;
+  final List<SalesDocument>? documents;
 
   @override
-  List<Object?> get props => [message, activeDoc];
+  List<Object?> get props => [message, activeDoc, documents];
 }

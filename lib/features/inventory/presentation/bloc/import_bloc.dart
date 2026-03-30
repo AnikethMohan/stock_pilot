@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stock_pilot/core/error/failures.dart';
 import 'package:stock_pilot/features/inventory/domain/entities/inventory_import.dart';
@@ -139,6 +140,7 @@ class ImportBloc extends Bloc<ImportEvent, ImportState> {
         emit(ImportError(e.message));
       } else {
         emit(ImportError('Failed to import CSV: $e'));
+        debugPrint('${e}');
       }
     }
   }

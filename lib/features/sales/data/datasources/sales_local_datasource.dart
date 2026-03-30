@@ -334,6 +334,56 @@ class SalesLocalDataSource {
     final db = await _dbHelper.database;
 
     return db.transaction((txn) async {
+      // Constraints check
+      if (doc.sourceDocId != null) {
+        final sourceRow = await txn.query(
+          'sales_documents',
+          columns: ['doc_type'],
+          where: 'id = ?',
+          whereArgs: [doc.sourceDocId],
+        );
+
+        if (sourceRow.isNotEmpty) {
+          final sType = DocType.fromString(sourceRow.first['doc_type'] as String);
+
+          if (sType == DocType.deliveryNote) {
+            if (doc.docType == DocType.invoice) {
+              final otherInvoices = await txn.query(
+                'sales_documents',
+                where:
+                    'source_doc_id = ? AND doc_type = ? AND id != ? AND status != ?',
+                whereArgs: [
+                  doc.sourceDocId,
+                  DocType.invoice.value,
+                  doc.id ?? -1,
+                  DocStatus.cancelled.value,
+                ],
+              );
+              if (otherInvoices.isNotEmpty) {
+                throw const ValidationFailure(
+                  'Another invoice already exists for this delivery note.',
+                );
+              }
+            } else if (doc.docType == DocType.deliveryReturn) {
+              final invoiceExists = await txn.query(
+                'sales_documents',
+                where: 'source_doc_id = ? AND doc_type = ? AND status != ?',
+                whereArgs: [
+                  doc.sourceDocId,
+                  DocType.invoice.value,
+                  DocStatus.cancelled.value,
+                ],
+              );
+              if (invoiceExists.isNotEmpty) {
+                throw const ValidationFailure(
+                  'Cannot confirm delivery return because an invoice already exists for the source delivery note.',
+                );
+              }
+            }
+          }
+        }
+      }
+
       bool sourceAffections = false;
       if (doc.sourceDocId != null) {
         final sourceRow = await txn.query(
@@ -656,7 +706,43 @@ class SalesLocalDataSource {
     int sourceDocId,
     DocType targetType,
   ) async {
+    final db = await _dbHelper.database;
     final sourceDoc = await getDocumentById(sourceDocId);
+
+    if (sourceDoc.docType == DocType.deliveryNote) {
+      if (targetType == DocType.invoice) {
+        final existingInvoices = await db.query(
+          'sales_documents',
+          where: 'source_doc_id = ? AND doc_type = ? AND status != ?',
+          whereArgs: [
+            sourceDocId,
+            DocType.invoice.value,
+            DocStatus.cancelled.value,
+          ],
+        );
+        if (existingInvoices.isNotEmpty) {
+          throw const ValidationFailure(
+            'An invoice has already been created from this delivery note.',
+          );
+        }
+      } else if (targetType == DocType.deliveryReturn) {
+        final existingInvoices = await db.query(
+          'sales_documents',
+          where: 'source_doc_id = ? AND doc_type = ? AND status != ?',
+          whereArgs: [
+            sourceDocId,
+            DocType.invoice.value,
+            DocStatus.cancelled.value,
+          ],
+        );
+        if (existingInvoices.isNotEmpty) {
+          throw const ValidationFailure(
+            'Cannot create a delivery return because an invoice already exists for this delivery note.',
+          );
+        }
+      }
+    }
+
     final newDocNumber = await getNextDocNumber(targetType);
 
     final newDoc = SalesDocument(

@@ -49,53 +49,77 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
       appBar: AppBar(
         title: Text(widget.docType.value.capitalizeUnderscoreWordsOnlyFirst()),
       ),
-      body: BlocBuilder<SalesDocBloc, SalesDocState>(
-        buildWhen: (prev, curr) =>
-            curr is SalesDocListLoaded || curr is SalesDocLoading,
-        builder: (context, state) {
-          final settingsState = context.watch<SettingsBloc>().state;
-          final currencySymbol = settingsState is SettingsLoaded
-              ? settingsState.currencySymbol
-              : '\$';
-          final currencyFormat = NumberFormat.currency(
-            symbol: currencySymbol,
-            decimalDigits: 2,
-          );
-
-          if (state is SalesDocLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is SalesDocListLoaded) {
-            if (state.documents.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.description_outlined,
-                      size: 64,
-                      color: Colors.white.withValues(alpha: 0.3),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('No documents found.'),
-                  ],
-                ),
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-              itemCount: state.documents.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 4),
-              itemBuilder: (context, index) {
-                final doc = state.documents[index];
-                return _buildDocCard(doc, currencyFormat);
-              },
+      body: BlocListener<SalesDocBloc, SalesDocState>(
+        listener: (context, state) {
+          if (state is SalesDocError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppTheme.error,
+              ),
             );
           }
-
-          return const SizedBox.shrink();
         },
+        child: BlocBuilder<SalesDocBloc, SalesDocState>(
+          buildWhen: (prev, curr) =>
+              curr is SalesDocListLoaded ||
+              curr is SalesDocLoading ||
+              curr is SalesDocError,
+          builder: (context, state) {
+            final settingsState = context.watch<SettingsBloc>().state;
+            final currencySymbol = settingsState is SettingsLoaded
+                ? settingsState.currencySymbol
+                : '\$';
+            final currencyFormat = NumberFormat.currency(
+              symbol: currencySymbol,
+              decimalDigits: 2,
+            );
+
+            if (state is SalesDocLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            List<SalesDocument>? documents;
+            if (state is SalesDocListLoaded) {
+              documents = state.documents;
+            } else if (state is SalesDocError) {
+              documents = state.documents;
+            }
+
+            if (documents != null) {
+              if (documents.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.description_outlined,
+                        size: 64,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('No documents found.'),
+                    ],
+                  ),
+                );
+              }
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 15,
+                ),
+                itemCount: documents.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 4),
+                itemBuilder: (context, index) {
+                  final doc = documents![index];
+                  return _buildDocCard(doc, currencyFormat);
+                },
+              );
+            }
+
+            return const SizedBox.shrink();
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),

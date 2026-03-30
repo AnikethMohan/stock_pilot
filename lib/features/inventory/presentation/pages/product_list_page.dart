@@ -373,6 +373,11 @@ class _ProductListPageState extends State<ProductListPage> {
     final sym = settingsState is SettingsLoaded
         ? settingsState.currencySymbol
         : '\$';
+    void handleDoubleTap(Product p) {
+      _selectedProducts.add(p);
+      Navigator.pop(context, _selectedProducts.toList());
+    }
+
     return SingleChildScrollView(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -396,6 +401,9 @@ class _ProductListPageState extends State<ProductListPage> {
               ],
               rows: state.products.map((p) {
                 return DataRow(
+                  onLongPress: () {
+                    handleDoubleTap(p);
+                  },
                   selected: _selectedProducts.contains(p),
                   onSelectChanged: widget.isSelectionMode
                       ? (selected) {
