@@ -19,6 +19,7 @@ abstract class SalesRepository {
   Future<String> getNextDocNumber(DocType type);
   Future<List<SalesDocument>> getDocuments({
     DocType? typeFilter,
+    String? searchQuery,
     int limit = 50,
     int offset = 0,
   });

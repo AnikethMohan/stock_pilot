@@ -114,12 +114,40 @@ class SalesLocalDataSource {
 
   Future<List<SalesDocument>> getDocuments({
     DocType? typeFilter,
+    String? searchQuery,
     int limit = 50,
     int offset = 0,
   }) async {
     final db = await _dbHelper.database;
-    final where = typeFilter != null ? 'doc_type = ?' : null;
-    final whereArgs = typeFilter != null ? [typeFilter.value] : null;
+
+    String? where;
+    final List<Object?> whereArgs = [];
+
+    if (typeFilter != null) {
+      where = 'doc_type = ?';
+      whereArgs.add(typeFilter.value);
+    }
+
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final searchPattern = '%$searchQuery%';
+      final searchClause = '''
+        (doc_number LIKE ? 
+         OR EXISTS (SELECT 1 FROM customers c WHERE c.id = sales_documents.customer_id AND c.name LIKE ?)
+         OR EXISTS (SELECT 1 FROM suppliers s WHERE s.id = sales_documents.supplier_id AND s.name LIKE ?)
+         OR EXISTS (SELECT 1 FROM sales_document_items sdi WHERE sdi.document_id = sales_documents.id AND sdi.product_name LIKE ?))
+      ''';
+      if (where != null) {
+        where = '$where AND $searchClause';
+      } else {
+        where = searchClause;
+      }
+      whereArgs.addAll([
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern,
+      ]);
+    }
 
     final rows = await db.query(
       'sales_documents',
@@ -344,7 +372,9 @@ class SalesLocalDataSource {
         );
 
         if (sourceRow.isNotEmpty) {
-          final sType = DocType.fromString(sourceRow.first['doc_type'] as String);
+          final sType = DocType.fromString(
+            sourceRow.first['doc_type'] as String,
+          );
 
           if (sType == DocType.deliveryNote) {
             if (doc.docType == DocType.invoice) {

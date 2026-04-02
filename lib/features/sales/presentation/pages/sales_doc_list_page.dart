@@ -2,6 +2,7 @@
 /// and document conversion actions.
 library;
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -25,6 +26,8 @@ class SalesDocListPage extends StatefulWidget {
 
 class _SalesDocListPageState extends State<SalesDocListPage> {
   DocType? _selectedFilter;
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -33,11 +36,52 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      context.read<SalesDocBloc>().add(
+        LoadDocuments(typeFilter: _selectedFilter, query: query),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Sales and Purchase')),
       body: Column(
         children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by number, customer, or product...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              onChanged: _onSearchChanged,
+            ),
+          ),
           // Filter Chips
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -130,7 +174,7 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
                       );
                     }
                     return ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
                       itemCount: documents.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {
@@ -143,7 +187,6 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
                   return const SizedBox.shrink();
                 },
               ),
-
             ),
           ),
         ],
@@ -174,7 +217,9 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
       checkmarkColor: AppTheme.highlight,
       onSelected: (_) {
         setState(() => _selectedFilter = type);
-        context.read<SalesDocBloc>().add(LoadDocuments(typeFilter: type));
+        context.read<SalesDocBloc>().add(
+          LoadDocuments(typeFilter: type, query: _searchController.text),
+        );
       },
     );
   }
@@ -383,7 +428,12 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: _selectedFilter,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -403,7 +453,12 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: _selectedFilter,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -423,7 +478,12 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: _selectedFilter,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -446,7 +506,12 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: _selectedFilter,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -469,7 +534,12 @@ class _SalesDocListPageState extends State<SalesDocListPage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: _selectedFilter));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: _selectedFilter,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }

@@ -36,13 +36,19 @@ class SetDocType extends SalesDocEvent {
 
 /// Load the list of past documents.
 class LoadDocuments extends SalesDocEvent {
-  const LoadDocuments({this.typeFilter, this.limit = 50, this.offset = 0});
+  const LoadDocuments({
+    this.typeFilter,
+    this.query,
+    this.limit = 50,
+    this.offset = 0,
+  });
   final DocType? typeFilter;
+  final String? query;
   final int limit;
   final int offset;
 
   @override
-  List<Object?> get props => [typeFilter, limit, offset];
+  List<Object?> get props => [typeFilter, query, limit, offset];
 }
 
 /// Add a line item to the active draft.

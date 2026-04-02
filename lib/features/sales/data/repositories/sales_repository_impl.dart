@@ -42,11 +42,13 @@ class SalesRepositoryImpl implements SalesRepository {
   @override
   Future<List<SalesDocument>> getDocuments({
     DocType? typeFilter,
+    String? searchQuery,
     int limit = 50,
     int offset = 0,
   }) {
     return _dataSource.getDocuments(
       typeFilter: typeFilter,
+      searchQuery: searchQuery,
       limit: limit,
       offset: offset,
     );

@@ -428,6 +428,7 @@ class SalesDocBloc extends Bloc<SalesDocEvent, SalesDocState> {
     try {
       final docs = await _repository.getDocuments(
         typeFilter: event.typeFilter,
+        searchQuery: event.query,
         limit: event.limit,
         offset: event.offset,
       );

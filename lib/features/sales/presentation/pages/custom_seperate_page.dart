@@ -2,6 +2,7 @@
 /// and document conversion actions.
 library;
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -27,6 +28,9 @@ class CustomSeparatePage extends StatefulWidget {
 }
 
 class _CustomSeparatePageState extends State<CustomSeparatePage> {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+
   @override
   void initState() {
     super.initState();
@@ -34,11 +38,27 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      context.read<SalesDocBloc>().add(
+        LoadDocuments(typeFilter: widget.docType, query: query),
+      );
+    });
+  }
+
+  @override
   void didUpdateWidget(CustomSeparatePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.docType != widget.docType) {
       context.read<SalesDocBloc>().add(
-        LoadDocuments(typeFilter: widget.docType),
+        LoadDocuments(typeFilter: widget.docType, query: _searchController.text),
       );
     }
   }
@@ -49,77 +69,108 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
       appBar: AppBar(
         title: Text(widget.docType.value.capitalizeUnderscoreWordsOnlyFirst()),
       ),
-      body: BlocListener<SalesDocBloc, SalesDocState>(
-        listener: (context, state) {
-          if (state is SalesDocError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppTheme.error,
-              ),
-            );
-          }
-        },
-        child: BlocBuilder<SalesDocBloc, SalesDocState>(
-          buildWhen: (prev, curr) =>
-              curr is SalesDocListLoaded ||
-              curr is SalesDocLoading ||
-              curr is SalesDocError,
-          builder: (context, state) {
-            final settingsState = context.watch<SettingsBloc>().state;
-            final currencySymbol = settingsState is SettingsLoaded
-                ? settingsState.currencySymbol
-                : '\$';
-            final currencyFormat = NumberFormat.currency(
-              symbol: currencySymbol,
-              decimalDigits: 2,
-            );
-
-            if (state is SalesDocLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            List<SalesDocument>? documents;
-            if (state is SalesDocListLoaded) {
-              documents = state.documents;
-            } else if (state is SalesDocError) {
-              documents = state.documents;
-            }
-
-            if (documents != null) {
-              if (documents.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.description_outlined,
-                        size: 64,
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('No documents found.'),
-                    ],
-                  ),
-                );
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 15,
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by number, customer, or product...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                itemCount: documents.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 4),
-                itemBuilder: (context, index) {
-                  final doc = documents![index];
-                  return _buildDocCard(doc, currencyFormat);
-                },
-              );
-            }
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              onChanged: _onSearchChanged,
+            ),
+          ),
+          Expanded(
+            child: BlocListener<SalesDocBloc, SalesDocState>(
+              listener: (context, state) {
+                if (state is SalesDocError) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.message),
+                      backgroundColor: AppTheme.error,
+                    ),
+                  );
+                }
+              },
+              child: BlocBuilder<SalesDocBloc, SalesDocState>(
+                buildWhen: (prev, curr) =>
+                    curr is SalesDocListLoaded ||
+                    curr is SalesDocLoading ||
+                    curr is SalesDocError,
+                builder: (context, state) {
+                  final settingsState = context.watch<SettingsBloc>().state;
+                  final currencySymbol = settingsState is SettingsLoaded
+                      ? settingsState.currencySymbol
+                      : '\$';
+                  final currencyFormat = NumberFormat.currency(
+                    symbol: currencySymbol,
+                    decimalDigits: 2,
+                  );
 
-            return const SizedBox.shrink();
-          },
-        ),
+                  if (state is SalesDocLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  List<SalesDocument>? documents;
+                  if (state is SalesDocListLoaded) {
+                    documents = state.documents;
+                  } else if (state is SalesDocError) {
+                    documents = state.documents;
+                  }
+
+                  if (documents != null) {
+                    if (documents.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              size: 64,
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text('No documents found.'),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 15,
+                      ),
+                      itemCount: documents.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 4),
+                      itemBuilder: (context, index) {
+                        final doc = documents![index];
+                        return _buildDocCard(doc, currencyFormat);
+                      },
+                    );
+                  }
+
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
@@ -135,7 +186,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
             ),
           );
           if (mounted) {
-            bloc.add(LoadDocuments(typeFilter: widget.docType));
+            bloc.add(
+              LoadDocuments(
+                typeFilter: widget.docType,
+                query: _searchController.text,
+              ),
+            );
           }
         },
       ),
@@ -345,7 +401,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: widget.docType));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: widget.docType,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -365,7 +426,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: widget.docType));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: widget.docType,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -385,7 +451,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: widget.docType));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: widget.docType,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -408,7 +479,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: widget.docType));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: widget.docType,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -431,7 +507,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: widget.docType));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: widget.docType,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -454,7 +535,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
               ),
             );
             if (mounted) {
-              bloc.add(LoadDocuments(typeFilter: widget.docType));
+              bloc.add(
+                LoadDocuments(
+                  typeFilter: widget.docType,
+                  query: _searchController.text,
+                ),
+              );
             }
           }
         }
@@ -518,7 +604,12 @@ class _CustomSeparatePageState extends State<CustomSeparatePage> {
       MaterialPageRoute(builder: (_) => SalesDocBuilderPage(document: doc)),
     );
     if (mounted) {
-      bloc.add(LoadDocuments(typeFilter: widget.docType));
+      bloc.add(
+        LoadDocuments(
+          typeFilter: widget.docType,
+          query: _searchController.text,
+        ),
+      );
     }
   }
 }
